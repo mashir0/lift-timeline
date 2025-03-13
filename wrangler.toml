@@ -1,0 +1,6 @@
+name = "ski-lift-status"
+main = "./.next/server/app/api/lift-status/route.js"
+compatibility_date = "2023-12-01"
+
+[site]
+bucket = "./.next/static"
