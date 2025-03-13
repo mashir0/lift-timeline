@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { fetchMockLiftStatuses, saveToDatabase } from '@/lib';
 
+// ビルド時のエラーを防ぐため、動的ルートとして設定
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     // APIからの取得
