@@ -7,9 +7,3 @@ pages_build_output_dir = ".vercel/output/static"
 # Cloudflare Workers用の設定
 [env.production]
 vars = { ENVIRONMENT = "production" }
-
-[site]
-bucket = "./.next/static"
-
-# Cloudflare Pages用の設定
-pages_build_output_dir = ".vercel/output/static"
