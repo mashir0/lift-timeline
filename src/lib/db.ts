@@ -2,15 +2,17 @@ import { createClient } from '@supabase/supabase-js';
 import { LiftStatusResponse, ResortLiftStatus, ResortLiftLogsByDate, DailyLiftLogs, LiftStatusLogs } from '@/types';
 import { toJST } from './utils';
 
-// 環境変数から設定を読み込む
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Supabaseクライアントを初期化する関数
+const getSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+  return createClient(supabaseUrl, supabaseKey);
+};
 
 type FetchParams = {
   resortId?: string;
@@ -21,6 +23,8 @@ type FetchParams = {
 
 // 基本的なデータ取得関数
 export const fetchFromDatabase = async (params: FetchParams = {}): Promise<ResortLiftStatus[]> => {
+  const supabase = getSupabaseClient();
+  
   let query = supabase
     // .from('lift_statuses')
     .from('lift_statuses_jst')
@@ -100,10 +104,12 @@ export const fetchWeeklyLiftLogs = async (resortId: string): Promise<ResortLiftL
 };
 
 export const saveToDatabase = async (statuses: LiftStatusResponse[]): Promise<void> => {
+  const supabase = getSupabaseClient();
+  
   const { error } = await supabase
     .from('lift_statuses')
     .insert(
-      statuses.map((status, index) => {
+      statuses.map((status) => {
         // タイムスタンプをJSTに変換
         const timestamp = toJST(new Date(status.timestamp));
         
