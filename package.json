@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cf:build": "npx @cloudflare/next-on-pages@1",
+    "cf:dev": "npx wrangler pages dev .vercel/output/static --compatibility-date=2024-02-01"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",

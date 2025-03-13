@@ -6,5 +6,4 @@ compatibility_date = "2024-02-01"
 bucket = "./.next/static"
 
 # Cloudflare Pages用の設定
-[pages_build_output_dir]
-value = ".vercel/output/static"
+pages_build_output_dir = ".vercel/output/static"
