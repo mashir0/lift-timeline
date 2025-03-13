@@ -4,6 +4,10 @@ const nextConfig = {
   experimental: {
     workerThreads: true,
     cpus: 1
+  },
+  // Cloudflare Workersでの実行を最適化
+  images: {
+    unoptimized: true,
   }
 }
 

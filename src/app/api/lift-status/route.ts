@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { fetchMockLiftStatuses, saveToDatabase } from '@/lib';
 
-// ビルド時のエラーを防ぐため、動的ルートとして設定
-export const dynamic = 'force-dynamic';
+// Cloudflare Workersで実行するための設定
+export const runtime = 'edge';
+export const preferredRegion = 'auto';
 
 export async function GET(request: Request) {
   try {
