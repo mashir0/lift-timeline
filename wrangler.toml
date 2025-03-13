@@ -1,6 +1,10 @@
-name = 'lift-timeline'
+name = "lift-timeline"
 main = "./.next/server/app/api/lift-status/route.js"
-compatibility_date = "2023-12-01"
+compatibility_date = "2024-02-01"
 
 [site]
 bucket = "./.next/static"
+
+# Cloudflare Pages用の設定
+[pages_build_output_dir]
+value = ".vercel/output/static"
