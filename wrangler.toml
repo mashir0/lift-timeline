@@ -1,7 +1,12 @@
+# Cloudflare Pages用の設定
 name = "lift-timeline"
-main = "./.next/server/app/api/lift-status/route.js"
 compatibility_date = "2024-02-01"
 compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# Cloudflare Workers用の設定
+[env.production]
+vars = { ENVIRONMENT = "production" }
 
 [site]
 bucket = "./.next/static"
