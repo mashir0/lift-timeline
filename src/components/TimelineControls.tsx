@@ -43,8 +43,14 @@ export function TimelineControls({
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">運行タイムライン</h2>
-          <p className="text-sm text-gray-500">リフトの運行状況をタイムラインで確認できます</p>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {currentDate.toLocaleDateString('ja-JP', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              weekday: 'short'
+            })}
+          </h2>
         </div>
         
         <div className="flex items-center gap-4">

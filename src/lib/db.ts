@@ -8,6 +8,11 @@ const getSupabaseClient = () => {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
+    if (typeof window !== 'undefined') {
+      // クライアントサイドでは、モックデータを返すか、エラーメッセージを表示
+      console.error('Supabase環境変数が設定されていません。Cloudflare Pagesの環境変数設定を確認してください。');
+      return null;
+    }
     throw new Error('Missing Supabase environment variables');
   }
 
@@ -24,6 +29,11 @@ type FetchParams = {
 // 基本的なデータ取得関数
 export const fetchFromDatabase = async (params: FetchParams = {}): Promise<ResortLiftStatus[]> => {
   const supabase = getSupabaseClient();
+  
+  if (!supabase) {
+    console.warn('Supabaseクライアントが初期化できませんでした。モックデータを返します。');
+    return []; // モックデータまたは空の配列を返す
+  }
   
   let query = supabase
     // .from('lift_statuses')
@@ -57,7 +67,7 @@ export const fetchFromDatabase = async (params: FetchParams = {}): Promise<Resor
       hint: error.hint,
       code: error.code
     });
-    throw error;
+    return []; // エラー時は空の配列を返す
   }
 
   // console.log('data', data);
@@ -106,6 +116,11 @@ export const fetchWeeklyLiftLogs = async (resortId: string): Promise<ResortLiftL
 export const saveToDatabase = async (statuses: LiftStatusResponse[]): Promise<void> => {
   const supabase = getSupabaseClient();
   
+  if (!supabase) {
+    console.warn('Supabaseクライアントが初期化できませんでした。データは保存されません。');
+    return;
+  }
+  
   const { error } = await supabase
     .from('lift_statuses')
     .insert(
@@ -125,6 +140,6 @@ export const saveToDatabase = async (statuses: LiftStatusResponse[]): Promise<vo
 
   if (error) {
     console.error('Error saving lift statuses:', error);
-    throw error;
+    // エラーをスローせず、ログに記録するだけ
   }
 }; 

@@ -67,7 +67,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50">
       <Header lastUpdated={lastUpdated} onRefresh={handleRefresh} />
       
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
         <TimelineControls
           mode={mode}
           currentDate={currentDate}
@@ -79,16 +79,6 @@ export default function Home() {
         />
         
         <div className="space-y-4">
-          {/* 日付を表示 */}
-          <div className="text-lg font-semibold text-gray-700">
-            {currentDate.toLocaleDateString('ja-JP', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              weekday: 'long'
-            })}
-          </div>
-          
           {/* 選択された日付のデータのみを表示 */}
           {resortList.map((resort) => {
             const dateKey = currentDate.toISOString().split('T')[0];
