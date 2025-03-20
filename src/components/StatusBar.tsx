@@ -1,9 +1,10 @@
 import React from 'react';
 import { toJST } from '@/lib/utils';
-
+import type { liftStatus } from '@/types';
+import { defaultStatusJa } from '@/lib/constants';
 type StatusBarProps = {
   liftId: string;
-  liftLogs: Record<string, Array<{ status: string; status_ja: string; created_at: string }>>;
+  liftLogs: liftStatus[];
   currentDate: Date;
   availableHours: number[];
   totalSegments: number;
@@ -13,13 +14,17 @@ const SEGMENTS_PER_HOUR = 12; // 5分単位
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'operating':
+    case 'OPERATING':
       return 'bg-green-200 hover:bg-green-300';
-    case 'outside-hours':
+    case 'OPERATION_SLOWED':
       return 'bg-blue-200 hover:bg-blue-300';
-    case 'preparing':
-    case 'investigating':
-    case 'closed':
+    case 'STANDBY':
+      return 'bg-yellow-200 hover:bg-yellow-300';
+    case 'SUSPENDED':
+      return 'bg-red-200 hover:bg-red-300';
+    case 'OPERATION_TEMPORARILY_SUSPENDED':
+      return 'bg-red-200 hover:bg-red-300';
+    case 'TODAY_CLOSED':
       return 'bg-red-200 hover:bg-red-300';
     case 'undefined':
       return 'bg-gray-50 hover:bg-gray-100';
@@ -39,6 +44,13 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 };
 
 export function StatusBar({ liftId, liftLogs, currentDate, availableHours, totalSegments }: StatusBarProps) {
+
+  // console.log("liftId in StatusBar", liftId);  
+  // console.log("liftLogs in StatusBar", liftLogs);  
+  // console.log("currentDate in StatusBar", currentDate);  
+  // console.log("availableHours in StatusBar", availableHours);  
+  // console.log("totalSegments in StatusBar", totalSegments);  
+
   // セグメントごとのステータスを取得する関数
   const getStatusForSegment = (liftId: string, hourIndex: number, segmentIndex: number) => {
     const hour = availableHours[hourIndex];
@@ -50,22 +62,16 @@ export function StatusBar({ liftId, liftLogs, currentDate, availableHours, total
     const now = toJST(new Date());
 
     // 対象の時間が現在時刻より未来の場合は、未定義のステータスを返す
-    if (
-      targetTime > now ||
-      (isSameDay(targetTime, now) && targetTime > now)
-    ) {
-      return { status: 'undefined', status_ja: '未定' };
+    if ( targetTime> now || (isSameDay(targetTime, now) && targetTime > now)) {
+      return { status: 'undefined', created_at: targetTime.toISOString() };
     }
 
-    // 現在の日付のログを取得（JST）
-    const dayLogs = liftLogs[liftId] || [];
-
     // その時点での最新のステータスを取得（JST）
-    const liftLog = dayLogs
+    const liftLog = liftLogs
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .find(log => new Date(log.created_at) <= targetTime);
 
-    return liftLog || { status: 'outside-hours', status_ja: '営業時間外' };
+    return liftLog || { status: 'outside-hours', created_at: targetTime.toISOString() };
   };
 
   // セグメントごとのステータスを取得
@@ -78,12 +84,16 @@ export function StatusBar({ liftId, liftLogs, currentDate, availableHours, total
   // 連続する同じステータスをグループ化
   const groups = segments.reduce((acc, status, index) => {
     if (index === 0 || status.status !== segments[index - 1].status) {
-      acc.push({ ...status, startIndex: index, count: 1 });
+      acc.push({ 
+        ...status, 
+        startIndex: index, 
+        count: 1 
+      });
     } else {
       acc[acc.length - 1].count += 1;
     }
     return acc;
-  }, [] as Array<{ status: string; status_ja: string; startIndex: number; count: number }>);
+  }, [] as Array<{ status: string; created_at: string; startIndex: number; count: number }>);
 
   return (
     <div className="absolute inset-0 flex w-full h-full">
@@ -114,7 +124,7 @@ export function StatusBar({ liftId, liftLogs, currentDate, availableHours, total
         const endMinute = (endMinuteIndex + 1) * 5 - 1; // 終了時間は次のセグメントの開始時間の1分前
 
         const timeRange = `${formatTime(startHour, startMinute)}〜${formatTime(endHour, endMinute)}`;
-        const tooltipText = `${group.status_ja} (${timeRange})`;
+        const tooltipText = `${group.status} (${timeRange})`;
 
         return (
           <div
@@ -123,7 +133,9 @@ export function StatusBar({ liftId, liftLogs, currentDate, availableHours, total
             style={{ borderRadius, flex: group.count }}
           >
             {shouldShowText && (
-              <span className="text-center text-xs text-gray-600 truncate px-1">{group.status_ja}</span>
+              <span className="text-center text-xs text-gray-600 truncate px-1">
+                {defaultStatusJa[group.status as keyof typeof defaultStatusJa]}
+              </span>
             )}
             
             {/* Tailwind CSSのみを使用したツールチップ */}

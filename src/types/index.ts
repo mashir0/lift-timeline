@@ -1,102 +1,119 @@
-export type OperationStatus = 'operating' | 'closed' | 'preparing' | 'investigating' | 'outside-hours';
+export type OperationStatus =
+  "OPERATING" |
+  "OPERATION_SLOWED" |
+  "STANDBY" |
+  "SUSPENDED" |
+  "OPERATION_TEMPORARILY_SUSPENDED" |
+  "TODAY_CLOSED";
 
-export type TimeSlot = {
-  hour: number;
-  status: OperationStatus;
-  statusJa: string;
-};
-export type LiftInfo = {
-  id: string;
+/***
+ * Yukiyama API関連の型定義
+ ***/
+export type LiftBase = {
+  id: number;
+  object_id: string;
   name: string;
+  start_time: string;
+  end_time: string;
+}
+
+// APIから取得したデータの型
+export type YukiyamaResponse = LiftBase & {
+  comment: string;
+  status: OperationStatus;
+  groomed: string;
+  updateDate: string;
+}
+
+/***
+ * Supabase 関連の型定義
+ ***/
+export type DBQuery = {
+  resort_id?: number;
+  created_at?: {
+    gte?: string;
+    lte?: string;
+  };
+  [key: string]: any;
 };
 
-export type LiftStatus = {
-  id: string;
-  status: OperationStatus;
-  status_ja: string;
+// DBのSki Resortの型(ski_resorts)
+export type DBResort = {
+  id: number;
+  name: string;
+  map_url: string;
   created_at: string;
-};
+  updated_at: string;
+}
 
-export type Resort = {
+// DBのLiftの型(lifts)
+export type DBLift = LiftBase & {
+  resort_id: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// DBのLift Statusの型(lift_status)
+// データベースに保存する型
+export type DBLiftStatus = {
+  // id: 自動生成されるので不要
+  // created_at: 自動生成されるので不要
+  comment: string;
+  status: OperationStatus;
+  groomed: string;
+  status_updated: Date;
+  lift_id: number;
+}
+
+// DBのLift Statusの型(lift_status_jst)
+// list_statusをJSTに変更したり、他のテーブルからSelectしたView
+export type DBLiftStatusJst = DBLiftStatus & {
   id: string;
-  name: string;
-  status: 'all-available' | 'partially-available';
-  lifts: LiftInfo[];
-  mapUrl: string;
-  infoUrl: string;
-};
-
-export type TimelineData = {
-  [liftId: string]: {
-    [hour: string]: OperationStatus;
-  };
-};
-
-export type WeeklyData = {
-  [liftId: string]: {
-    [day: string]: 'operating' | 'closed';
-  };
+  lift_name: string;
+  resort_id: number;
+  resort_name: string;
+  created_at: string;
 };
 
 /***
- * API関連の型定義
+ * DTO (Data Transfer Object)
  ***/
-// APIから取得したデータの型
-export type LiftStatusResponse = {
-  resortId: string;
-  liftId: string;
-  timestamp: string;
-  status: OperationStatus;
-  statusJa: string;
-};
-
-// DBの型
-export type ResortLiftStatus = {
-  id: string;
-  resort_id: string;
-  lift_id: string;
-  status: OperationStatus;
-  status_ja: string;
-  created_at: string;
-};
-
-// DBから取得したデータを整形
-export type LiftLogs = {
-  [liftId: string]: Array<{
-    status: OperationStatus;
-    status_ja: string;
-    created_at: string;
-  }>;
+// Resorts一覧　id: {name, map_url}
+export type ResortsDto = {
+  [id: number]: { 
+    name: string; 
+    map_url: string; 
+  };
 }
 
-// DBから取得したデータを整形
-export type LiftLogsByDate = {
-  [date: string]: LiftLogs;
+// Lifts一覧　id: {name, start_time, end_time}
+export type LiftsDto = {
+  [resort_id: number]: { 
+    [lift_id: number]: { 
+      name: string; 
+      start_time: string; 
+      end_time: string; 
+    };
+  };
 }
 
-// リゾートごとのログを取得してFrontで利用する際の型 
-export type ResortLiftLogs = {
-  [resortId: string]: LiftLogsByDate;
-};
-
-// リフト1つの運行ログ配列
-export type LiftStatusLogs = Array<{
+// リフト運行ログの型
+export type liftStatus = {
   status: OperationStatus;
-  status_ja: string;
   created_at: string;
-}>;
+}
 
 // 1日分のリゾート内の全リフト運行ログ
-export type DailyLiftLogs = {
-  [liftId: string]: LiftStatusLogs;
+export type OneDayLiftLogs = {
+  [liftId: number]: Array<liftStatus>;
 };
 
 // リゾート1つの日付ごとの運行ログ
 export type ResortLiftLogsByDate = {
-  [date: string]: DailyLiftLogs;
+  [date: string]: OneDayLiftLogs;
 };
 
 // 全リゾートの運行ログデータ
 export type AllResortsLiftLogs = {
-  [resortId: string]: ResortLiftLogsByDate;
+  [resortId: number]: ResortLiftLogsByDate;
 };

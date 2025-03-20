@@ -1,36 +1,21 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Map, Info } from 'lucide-react';
-import type { Resort, DailyLiftLogs } from '@/types';
+import { Map } from 'lucide-react';
+import type { ResortsDto, LiftsDto, OneDayLiftLogs } from '@/types';
 import { StatusBar } from './StatusBar';
 
 type ResortCardProps = {
-  resort: Resort;
   mode: 'daily' | 'weekly';
   currentDate: Date;
-  liftLogs: DailyLiftLogs;
+  resort: ResortsDto[number];
+  lifts: LiftsDto[number];
+  liftLogs: OneDayLiftLogs;
 };
 
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7);
 const SEGMENTS_PER_HOUR = 12; // 5分単位
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'operating':
-      return 'bg-green-200 hover:bg-green-300';
-    case 'outside-hours':
-      return 'bg-blue-200 hover:bg-blue-300';
-    case 'preparing':
-    case 'investigating':
-    case 'closed':
-      return 'bg-red-200 hover:bg-red-300';
-    case 'undefined':
-      return 'bg-gray-50 hover:bg-gray-100';
-    default:
-      return 'bg-gray-200 hover:bg-gray-300';
-  }
-};
+export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: ResortCardProps) {
 
-export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -93,7 +78,10 @@ export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardPr
                 <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${availableHours.length}, 1fr)` }}>
                   {availableHours.map((hour) => (
                     <div key={hour} className="text-sm text-gray-500 text-left">
-                      {hour}:00
+                      <span className="hidden md:inline">{hour}:00</span>
+                      <span className="md:hidden">
+                        {availableHours.length <= 6 || hour % 2 === 1 ? `${hour}:00` : ''}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -101,21 +89,21 @@ export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardPr
               
               {/* リフトごとのタイムライン */}
               <div className="space-y-4 w-full">
-                {resort.lifts.map((lift) => (
-                  <div key={lift.id} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full">
+                {Object.entries(liftLogs).map(([liftId, status]) => ( 
+                  <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full"> 
                     <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
-                      <span
-                        className="truncate cursor-help"
-                        onMouseEnter={(e) => showTooltip(e, lift.name)}
+                      <span className="truncate cursor-help"
+                        onMouseEnter={(e) => showTooltip(e, lifts[Number(liftId)].name)}
                         onMouseLeave={hideTooltip}
                       >
-                        {lift.name}
+                        {lifts[Number(liftId)].name}
                       </span>
                     </div>
+                  
                     <div className="relative h-6 w-full">
                       <StatusBar
-                        liftId={lift.id}
-                        liftLogs={liftLogs}
+                        liftId={liftId}
+                        liftLogs={status}
                         currentDate={currentDate}
                         availableHours={availableHours}
                         totalSegments={totalSegments}
@@ -126,27 +114,16 @@ export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardPr
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              {resort.lifts.map((lift) => (
-                <div key={lift.id} className="space-y-1">
-                  <div className="text-sm text-gray-600 truncate">{lift.name}</div>
-                  <div className="h-6 grid grid-cols-7 gap-1">
-                    {Array.from({ length: 7 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="bg-green-200 rounded"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+            // Weekly
+            <div>
+              <h1>Weekly T.B.D.</h1>
             </div>
           )}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 mt-4">
           <a
-            href={resort.mapUrl}
+            href={resort.map_url.startsWith('http') ? resort.map_url : `https://${resort.map_url}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -154,7 +131,7 @@ export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardPr
             <Map className="w-4 h-4 mr-2" />
             ゲレンデマップを見る
           </a>
-          <a
+          {/* <a
             href={resort.infoUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -162,7 +139,7 @@ export function ResortCard({ resort, mode, currentDate, liftLogs }: ResortCardPr
           >
             <Info className="w-4 h-4 mr-2" />
             詳しい運行情報を見る
-          </a>
+          </a> */}
         </div>
       </div>
     </>

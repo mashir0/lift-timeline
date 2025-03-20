@@ -20,7 +20,7 @@ export function Legend({ mode }: LegendProps) {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-200 rounded" />
-            <span className="text-sm">営業時間外</span>
+            <span className="text-sm">低速運転</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-red-200 rounded" />
