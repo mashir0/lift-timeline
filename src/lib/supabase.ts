@@ -18,12 +18,7 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
     console.log('SUPABASE_KEY available:', !!supabaseKey);
 
     if (!supabaseUrl || !supabaseKey) {
-      if (typeof window !== 'undefined') {
-        console.error('Supabase環境変数が設定されていません。');
-        return null;
-      }
-      // ビルド時は例外を投げずに警告だけ出す
-      console.warn('Supabase環境変数が設定されていません。ビルド用にダミーデータを使用します。');
+      console.error('Supabase環境変数が設定されていません。');
       return null;
     }
     

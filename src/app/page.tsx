@@ -1,7 +1,8 @@
 // 'use client'
 
 import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
-import { TimelinePage } from '@/components/TimelinePage';
+// import { TimelinePage } from '@/components/TimelinePage';
+import TimelinePageWrapper from '@/components/TimelinePageWrapper';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 
 // ISR設定は Cloudflare Pages では使用できないため削除
@@ -26,10 +27,14 @@ export default async function Home() {
       })
     );
 
-    return <TimelinePage 
-      initialResorts={resorts} 
-      initialLifts={lifts} 
-      initialLogs={logs} 
+    // return <TimelinePage 
+    return <TimelinePageWrapper 
+      // initialResorts={resorts} 
+      // initialLifts={lifts} 
+      // initialLogs={logs} 
+      resortsData={resorts} 
+      liftsData={lifts} 
+      logsData={logs} 
     />;
   } catch (error) {
     console.error('Error fetching data:', error);
