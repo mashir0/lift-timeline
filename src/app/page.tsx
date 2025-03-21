@@ -2,8 +2,11 @@ import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseD
 import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 
-// ISR設定 - 5分ごとに再生成
-export const revalidate = 300;
+// ISR設定は Cloudflare Pages では使用できないため削除
+// export const revalidate = 300;
+
+// CloudFlare Workers上で実行するためのEdgeランタイム設定
+export const runtime = 'edge';
 
 export default async function Home() {
   try {

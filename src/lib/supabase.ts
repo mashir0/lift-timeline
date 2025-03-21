@@ -22,7 +22,9 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
         console.error('Supabase環境変数が設定されていません。');
         return null;
       }
-      throw new Error('Missing Supabase environment variables');
+      // ビルド時は例外を投げずに警告だけ出す
+      console.warn('Supabase環境変数が設定されていません。ビルド用にダミーデータを使用します。');
+      return null;
     }
     
     try {
