@@ -13,6 +13,10 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+    console.log('Initializing Supabase client...');
+    console.log('SUPABASE_URL available:', !!supabaseUrl);
+    console.log('SUPABASE_KEY available:', !!supabaseKey);
+
     if (!supabaseUrl || !supabaseKey) {
       if (typeof window !== 'undefined') {
         console.error('Supabase環境変数が設定されていません。');
@@ -20,7 +24,14 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
       }
       throw new Error('Missing Supabase environment variables');
     }
-    supabaseInstance = createClient(supabaseUrl, supabaseKey);
+    
+    try {
+      supabaseInstance = createClient(supabaseUrl, supabaseKey);
+      console.log('Supabase client initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error);
+      return null;
+    }
   }
   return supabaseInstance;
 }

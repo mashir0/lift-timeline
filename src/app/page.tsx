@@ -2,27 +2,43 @@ import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseD
 import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 
+// ISR設定 - 5分ごとに再生成
+export const revalidate = 300;
+
 export default async function Home() {
-  // サーバー側でデータを取得
-  const resorts: ResortsDto = await getAllResorts();
-  const lifts: LiftsDto = await getAllLifts();
-  
-  // リフトステータスデータ
-  const logs: AllResortsLiftLogs = {};
+  try {
+    // サーバー側でデータを取得
+    console.log('Fetching resorts...');
+    const resorts: ResortsDto = await getAllResorts();
+    console.log('Resorts fetched:', resorts);
 
-  // リゾートごとにデータを取得
-  await Promise.all(
-    Object.keys(resorts).map(async (resortId) => {
-      const resortLogs = await fetchWeeklyLiftLogs(Number(resortId));
-      if (Object.keys(resortLogs).length > 0) {
-        logs[Number(resortId)] = resortLogs;
-      }
-    })
-  );
+    console.log('Fetching lifts...');
+    const lifts: LiftsDto = await getAllLifts();
+    console.log('Lifts fetched:', lifts);
+    
+    // リフトステータスデータ
+    const logs: AllResortsLiftLogs = {};
 
-  return <TimelinePage 
-    initialResorts={resorts} 
-    initialLifts={lifts} 
-    initialLogs={logs} 
-  />;
+    // リゾートごとにデータを取得
+    await Promise.all(
+      Object.keys(resorts).map(async (resortId) => {
+        console.log(`Fetching logs for resort ${resortId}...`);
+        const resortLogs = await fetchWeeklyLiftLogs(Number(resortId));
+        if (Object.keys(resortLogs).length > 0) {
+          logs[Number(resortId)] = resortLogs;
+        }
+        console.log(`Logs fetched for resort ${resortId}:`, resortLogs);
+      })
+    );
+
+    return <TimelinePage 
+      initialResorts={resorts} 
+      initialLifts={lifts} 
+      initialLogs={logs} 
+    />;
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    // エラー時のフォールバックUIを表示
+    return <div>データの取得に失敗しました。エラー: {error instanceof Error ? error.message : String(error)}</div>;
+  }
 }
