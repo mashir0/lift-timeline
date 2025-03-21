@@ -1,3 +1,5 @@
+'use client'
+
 import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
@@ -6,7 +8,7 @@ import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 // export const revalidate = 300;
 
 // CloudFlare Workers上で実行するためのEdgeランタイム設定
-export const runtime = 'edge';
+// export const runtime = 'edge';
 
 export default async function Home() {
   try {
