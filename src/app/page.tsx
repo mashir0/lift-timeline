@@ -1,4 +1,4 @@
-'use client'
+// 'use client'
 
 import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
@@ -8,31 +8,21 @@ import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 // export const revalidate = 300;
 
 // CloudFlare Workers上で実行するためのEdgeランタイム設定
-// export const runtime = 'edge';
+export const runtime = 'edge';
 
 export default async function Home() {
   try {
-    // サーバー側でデータを取得
-    console.log('Fetching resorts...');
     const resorts: ResortsDto = await getAllResorts();
-    console.log('Resorts fetched:', resorts);
-
-    console.log('Fetching lifts...');
     const lifts: LiftsDto = await getAllLifts();
-    console.log('Lifts fetched:', lifts);
-    
-    // リフトステータスデータ
     const logs: AllResortsLiftLogs = {};
 
     // リゾートごとにデータを取得
     await Promise.all(
       Object.keys(resorts).map(async (resortId) => {
-        console.log(`Fetching logs for resort ${resortId}...`);
         const resortLogs = await fetchWeeklyLiftLogs(Number(resortId));
         if (Object.keys(resortLogs).length > 0) {
           logs[Number(resortId)] = resortLogs;
         }
-        console.log(`Logs fetched for resort ${resortId}:`, resortLogs);
       })
     );
 
