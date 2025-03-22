@@ -1,21 +1,23 @@
 // 'use client'
 
 import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
-// import { TimelinePage } from '@/components/TimelinePage';
-import TimelinePageWrapper from '@/components/TimelinePageWrapper';
+import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
-
-// ISR設定は Cloudflare Pages では使用できないため削除
-// export const revalidate = 300;
 
 // CloudFlare Workers上で実行するためのEdgeランタイム設定
 export const runtime = 'edge';
 
+// ISR設定は Cloudflare Pages では使用できないため削除
+// export const revalidate = 300;
+
+
 export default async function Home() {
   try {
-    const resorts: ResortsDto = await getAllResorts();
-    const lifts: LiftsDto = await getAllLifts();
     const logs: AllResortsLiftLogs = {};
+    const [resorts, lifts] = await Promise.all([
+      getAllResorts(),
+      getAllLifts()
+    ]);
 
     // リゾートごとにデータを取得
     await Promise.all(
@@ -27,14 +29,14 @@ export default async function Home() {
       })
     );
 
-    // return <TimelinePage 
-    return <TimelinePageWrapper 
-      // initialResorts={resorts} 
-      // initialLifts={lifts} 
-      // initialLogs={logs} 
-      resortsData={resorts} 
-      liftsData={lifts} 
-      logsData={logs} 
+    console.log('🚀 ~ Home ~ logs:', logs)
+    // console.log('🚀 ~ Home ~ lifts:', lifts)
+    // console.log('🚀 ~ Home ~ resorts:', resorts)
+    
+    return <TimelinePage 
+      initialResorts={resorts} 
+      initialLifts={lifts} 
+      initialLogs={logs} 
     />;
   } catch (error) {
     console.error('Error fetching data:', error);

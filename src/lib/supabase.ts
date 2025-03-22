@@ -5,11 +5,11 @@ import { DBQuery, DBLiftStatus, YukiyamaResponse } from '@/types';
  * Supabase base function
  ******************************************/
 // シングルトンインスタンスを保持
-let supabaseInstance: ReturnType<typeof createClient> | null = null;
+// let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
 // Supabaseクライアントを初期化する関数
 const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
-  if (!supabaseInstance) {
+  // if (!supabaseInstance) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -21,16 +21,22 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
       console.error('Supabase環境変数が設定されていません。');
       return null;
     }
+
+    return createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false, // Edge環境では永続化セッションは使用不可
+      }
+    });
     
-    try {
-      supabaseInstance = createClient(supabaseUrl, supabaseKey);
-      console.log('Supabase client initialized successfully');
-    } catch (error) {
-      console.error('Error initializing Supabase client:', error);
-      return null;
-    }
-  }
-  return supabaseInstance;
+    // try {
+    //   supabaseInstance = createClient(supabaseUrl, supabaseKey);
+    //   console.log('Supabase client initialized successfully');
+    // } catch (error) {
+    //   console.error('Error initializing Supabase client:', error);
+    //   return null;
+    // }
+  // }
+  // return supabaseInstance;
 }
 
 // テーブルからデータを取得する関数
