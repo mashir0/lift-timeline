@@ -36,9 +36,6 @@ export async function fetchWeeklyLiftLogs(resortId: number): Promise<ResortLiftL
   startDate.setDate(startDate.getDate() - 1); // 7日前からのデータを取得
   // startDate.setDate(startDate.getDate() - 1); // 1日前からのデータを取得
   
-  console.log('🚀 ~ fetchWeeklyLiftLogs ~ startDate:', startDate)
-  console.log('🚀 ~ fetchWeeklyLiftLogs ~ endDate:', endDate)
-
   const data = await fetchTable<DBLiftStatusJst>('lift_status_jst', {
     resort_id: resortId,
     created_at: {
@@ -46,7 +43,6 @@ export async function fetchWeeklyLiftLogs(resortId: number): Promise<ResortLiftL
       lte: endDate.toISOString()
     }
   });
-  console.log('🚀 ~ fetchWeeklyLiftLogs ~ data:', data)
 
   if (!data) {
     console.error('Error fetching lift statuses: data is null');
