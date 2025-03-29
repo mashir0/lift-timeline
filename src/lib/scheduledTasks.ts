@@ -5,7 +5,7 @@ import { fetchYukiyamaApi } from './yukiyama';
  * すべてのスキー場のリフト情報を更新する
  * Cloudflare CRONから直接実行される
  */
-export async function updateAllLiftStatuses(): Promise<{ 
+interface UpdateResponce {
   success: boolean; 
   message: string; 
   details?: Array<{
@@ -15,7 +15,10 @@ export async function updateAllLiftStatuses(): Promise<{
     count?: number;
     error?: string;
   }>;
-}> {
+}
+
+
+export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
   try {
     // スキー場情報を取得（共通モジュールから）
     const resorts = await getAllResorts();
