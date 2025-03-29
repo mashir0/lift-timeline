@@ -13,10 +13,6 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    console.log('Initializing Supabase client...');
-    console.log('SUPABASE_URL available:', !!supabaseUrl);
-    console.log('SUPABASE_KEY available:', !!supabaseKey);
-
     if (!supabaseUrl || !supabaseKey) {
       console.error('Supabase環境変数が設定されていません。');
       return null;
