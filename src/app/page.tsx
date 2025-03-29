@@ -1,12 +1,12 @@
-'use client'
+// 'use client'
 
 import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
-import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
+import type { AllResortsLiftLogs } from '@/types';
 
 // 今Edgeむりっぽいからひとまずclientにて実行
 // 治ったら（原因わかったら）SSR化
-// export const runtime = 'edge';
+export const runtime = 'edge';
 
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
