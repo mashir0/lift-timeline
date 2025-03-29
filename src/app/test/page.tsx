@@ -1,6 +1,7 @@
-'use client'
+'use client';
 
 import { useState } from 'react';
+import { updateAllLiftStatuses } from '@/lib/scheduledTasks';
 
 type TestResult = {
   success: boolean;
@@ -14,6 +15,8 @@ type TestResult = {
   }>;
 };
 
+export const runtime = 'edge';
+
 export default function TestPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
@@ -24,14 +27,8 @@ export default function TestPage() {
       setLoading(true);
       setError(null);
       
-      // APIエンドポイントを使用してリフト情報を更新
-      const response = await fetch('/api/update-lift-statuses');
-      
-      if (!response.ok) {
-        throw new Error(`APIエラー: ${response.status} ${response.statusText}`);
-      }
-      
-      const testResult = await response.json();
+      // 直接関数を呼び出し - APIなし
+      const testResult = await updateAllLiftStatuses();
       setResult(testResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
