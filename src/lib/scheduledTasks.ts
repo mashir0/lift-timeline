@@ -43,9 +43,8 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
           console.log(`スキー場ID ${id} のリフト情報を ${statuses.length}件取得しました。`);
 
           // ステップ2: DBに保存
-          // コメント解除するとDBに保存される
-          // const saveResult = await saveToLiftStatus(statuses);
-          // console.log(`スキー場ID ${id}: ${saveResult.message}`);
+          const saveResult = await saveToLiftStatus(statuses);
+          console.log(`スキー場ID ${id}: ${saveResult.message}`);
           
           // 成功レスポンスを返す
           return {
