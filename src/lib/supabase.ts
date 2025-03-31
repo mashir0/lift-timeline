@@ -104,7 +104,6 @@ export const insertTable = async <T extends Record<string, unknown>>(table: stri
 // リフトステータスの保存関数(API->DB.lift_status)
 export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise<{ success: boolean; message: string }> => {
   if (!apiResponse || apiResponse.length === 0) {
-    console.warn('保存するリフトステータスデータがありません。');
     return {
       success: false,
       message: '保存するリフトステータスデータがありません。',
@@ -125,7 +124,6 @@ export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise
       success: true,
       message: `${apiResponse.length}件のリフトステータスを保存しました。`,
     }
-    // console.log(`${apiResponse.length}件のリフトステータスを保存しました。`);
   } catch (error) {
     console.error('リフトステータスの保存中にエラーが発生しました:', error);
     // エラーを上位に伝播させる
