@@ -36,7 +36,7 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
         try {
           // APIからリフト情報を取得
           const statuses = await fetchYukiyamaApi(id);
-          console.log('🚀 ~ Object.entries ~ statuses:', statuses)
+          // console.log('🚀 ~ Object.entries ~ statuses:', statuses)
 
           // DBに保存
           await saveToLiftStatus(statuses);
