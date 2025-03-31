@@ -12,13 +12,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call Update API
+        id: api_call
         run: |
-          curl -X GET "https://lift-timeline.pages.dev/api/update-lift-statuses" \
-          -H "Content-Type: application/json" \
-          --retry 3 \
-          --retry-delay 5
+          echo "::group::APIリクエスト実行"
+          echo "開始時刻: $(date)"
+          
+          # 一時ファイルにレスポンスを保存
+          RESPONSE_FILE="/tmp/api_response.txt"
+          HTTP_STATUS=$(curl -s -o $RESPONSE_FILE -w "%{http_code}" \
+            -X GET "https://lift-timeline.pages.dev/api/update-lift-statuses" \
+            -H "Content-Type: application/json" \
+            --retry 3 \
+            --retry-delay 5 \
+            --connect-timeout 10 \
+            --max-time 60)
+          
+          echo "HTTPステータスコード: $HTTP_STATUS"
+          
+          # レスポンスの確認とエラーハンドリング
+          if [ $HTTP_STATUS -ge 200 ] && [ $HTTP_STATUS -lt 300 ]; then
+            echo "APIリクエスト成功"
+            cat $RESPONSE_FILE | jq . || echo "レスポンスのJSON解析に失敗しました"
+            echo "response_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "APIリクエスト失敗 (ステータス: $HTTP_STATUS)"
+            cat $RESPONSE_FILE
+            echo "response_status=failed" >> $GITHUB_OUTPUT
+            echo "http_status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "終了時刻: $(date)"
+          echo "::endgroup::"
       
-      - name: Log status
-        if: always()
+      - name: Success Notification
+        if: steps.api_call.outputs.response_status == 'success'
         run: |
-          echo "API呼び出し完了: $(date)" 
+          echo "リフト情報の更新に成功しました: $(date)"
+      
+      - name: Failure Notification
+        if: steps.api_call.outputs.response_status == 'failed'
+        run: |
+          echo "::error::リフト情報の更新に失敗しました: HTTPステータス ${steps.api_call.outputs.http_status}"
+          exit 1 

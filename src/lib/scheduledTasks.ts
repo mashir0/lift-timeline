@@ -24,55 +24,68 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
     const resorts = await getAllResorts();
     
     if (Object.keys(resorts).length === 0) {
+      console.warn('データベースにスキー場情報が見つかりませんでした。');
       return {
         success: false,
-        message: 'No resorts found in database'
+        message: 'スキー場情報がありません。'
       };
     }
+    
+    console.log(`${Object.keys(resorts).length}件のスキー場情報を取得しました。更新を開始します...`);
     
     // 各スキー場のリフト情報を更新
     const results = await Promise.all(
       Object.entries(resorts).map(async ([id, resort]) => {
         try {
-          // APIからリフト情報を取得
+          // ステップ1: APIからリフト情報を取得
+          console.log(`スキー場ID ${id} (${resort.name}) のリフト情報を取得中...`);
           const statuses = await fetchYukiyamaApi(id);
-          // console.log('🚀 ~ Object.entries ~ statuses:', statuses)
+          console.log(`スキー場ID ${id} のリフト情報を ${statuses.length}件取得しました。`);
 
-          // DBに保存
-          await saveToLiftStatus(statuses);
+          // ステップ2: DBに保存
+          // コメント解除するとDBに保存される
+          // const saveResult = await saveToLiftStatus(statuses);
+          // console.log(`スキー場ID ${id}: ${saveResult.message}`);
           
+          // 成功レスポンスを返す
           return {
             resortId: id,
             resortName: resort.name,
             success: true,
             count: statuses.length
           };
-
         } catch (error) {
-          console.error(`Error updating lift statuses for resort ${id}:`, error);
+          // エラーの種類に関係なく、このリゾートの処理に失敗したことを記録
+          console.error(`スキー場ID ${id} の処理中にエラーが発生:`, error);
           return {
             resortId: id,
             resortName: resort.name || 'Unknown',
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : '不明なエラーが発生しました'
           };
         }
       })
     );
     
+    // 成功・失敗の集計
     const successCount = results.filter(r => r.success).length;
+    const errorCount = results.length - successCount;
+    
+    console.log(`更新完了: 成功=${successCount}, 失敗=${errorCount}`);
     
     return { 
       success: successCount > 0,
-      message: `Updated ${successCount}/${Object.keys(resorts).length} resorts' lift statuses`,
+      message: `${Object.keys(resorts).length}件中${successCount}件のスキー場情報を更新しました。`,
       details: results
     };
     
   } catch (error) {
-    console.error('Error updating all lift statuses:', error);
+    // 予期せぬ全体的なエラー
+    const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
+    console.error('リフト状態の更新中に予期せぬエラーが発生しました:', errorMessage);
     return { 
       success: false, 
-      message: error instanceof Error ? error.message : 'Unknown error occurred' 
+      message: errorMessage
     };
   }
 } 
