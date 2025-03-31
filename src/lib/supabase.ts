@@ -102,17 +102,32 @@ export const insertTable = async <T extends Record<string, unknown>>(table: stri
 * DBに保存する関数
 ******************************************/
 // リフトステータスの保存関数(API->DB.lift_status)
-export const saveToLiftStatus = async (
-  apiResponse: YukiyamaResponse[]
-): Promise<void> => {
-  await insertTable<DBLiftStatus>('lift_status', 
-    apiResponse.map((res) => ({
-      lift_id: res.id,
-      comment: res.comment,
-      status: res.status,
-      groomed: res.groomed,
-      status_updated: new Date(res.updateDate),
-    }))
-  );
+export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise<{ success: boolean; message: string }> => {
+  if (!apiResponse || apiResponse.length === 0) {
+    return {
+      success: false,
+      message: '保存するリフトステータスデータがありません。',
+    }
+  }
+
+  try {
+    await insertTable<DBLiftStatus>('lift_status', 
+      apiResponse.map((res) => ({
+        lift_id: res.id,
+        comment: res.comment,
+        status: res.status,
+        groomed: res.groomed,
+        status_updated: new Date(res.updateDate),
+      }))
+    );
+    return {
+      success: true,
+      message: `${apiResponse.length}件のリフトステータスを保存しました。`,
+    }
+  } catch (error) {
+    console.error('リフトステータスの保存中にエラーが発生しました:', error);
+    // エラーを上位に伝播させる
+    throw new Error(`リフトステータスの保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
