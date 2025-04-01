@@ -10,7 +10,14 @@ export const fetchYukiyamaApi = async (skiareaId: string): Promise<YukiyamaRespo
 
   try {
     const url = `${yukiyamaApi}${baseQuery}&skiareaId=${skiareaId}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch from Yukiyama API: ${response.statusText}`);
