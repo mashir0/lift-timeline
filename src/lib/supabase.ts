@@ -106,7 +106,7 @@ export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise
   if (!apiResponse || apiResponse.length === 0) {
     return {
       success: false,
-      message: '保存するリフトステータスデータがありません。',
+      message: '[Supabase] 保存するリフトステータスデータがありません。',
     }
   }
 
@@ -120,14 +120,32 @@ export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise
         status_updated: new Date(res.updateDate),
       }))
     );
+    
     return {
       success: true,
-      message: `${apiResponse.length}件のリフトステータスを保存しました。`,
+      message: `[Supabase] ${apiResponse.length}件のリフトステータスを保存しました。`,
     }
   } catch (error) {
-    console.error('リフトステータスの保存中にエラーが発生しました:', error);
-    // エラーを上位に伝播させる
-    throw new Error(`リフトステータスの保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+    // エラーの詳細情報を取得
+    let errorDetail = '';
+    if (error instanceof Error) {
+      errorDetail = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      try {
+        // オブジェクトの場合はJSON文字列化を試みる
+        errorDetail = JSON.stringify(error);
+      } catch (e) {
+        // JSON変換に失敗した場合
+        errorDetail = Object.keys(error).map(key => `${key}: ${String((error as any)[key])}`).join(', ');
+      }
+    } else {
+      errorDetail = String(error);
+    }
+    
+    console.error('[Supabase] リフトステータスの保存中にエラーが発生しました:', errorDetail);
+    
+    // エラーメッセージに詳細を含める
+    throw new Error(`[Supabase] DB保存エラー: ${errorDetail}`);
   }
 };
 
