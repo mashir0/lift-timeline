@@ -2,8 +2,8 @@ name: Update Lift Statuses
 
 on:
   schedule:
-    # 10分ごとに実行（UTCタイムゾーン）
-    - cron: '*/10 * * * *'
+    # 日本時間6:00-18:00（UTC 21:00-9:00）の間、10分ごとに実行
+    - cron: '*/10 21-23,0-9 * * *'
   # 手動実行も可能にする
   workflow_dispatch:
 
