@@ -107,7 +107,7 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
     
     return { 
       success: successCount > 0,
-      message: `${Object.keys(resorts).length}件中${successCount}件のスキー場情報を更新しました。`,
+      message: `${Object.keys(resorts).length}件中${successCount}件のスキー場情報を更新しました。${allStatusData.length}件のリフト情報を保存しました。`,
       details: results
     };
   } catch (error) {
