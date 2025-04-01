@@ -15,7 +15,8 @@ type TimelinePageProps = {
 
 export function TimelinePage({ initialResorts, initialLifts, initialLogs }: TimelinePageProps) {
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
-  const today = new Date('2025-03-19');
+  // const today = new Date('2025-03-19');
+  const today = new Date();
   const [currentDate, setCurrentDate] = useState(today);
   const [lastUpdated, setLastUpdated] = useState(today);
   const [allResort] = useState(initialResorts);

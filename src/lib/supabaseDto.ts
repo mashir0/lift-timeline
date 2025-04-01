@@ -31,8 +31,10 @@ export async function getAllLifts(): Promise<LiftsDto> {
 
 // LiftStatus一覧 resort_id: {yyyy-mm-dd: {lift_id: {status, created_at}}}
 export async function fetchWeeklyLiftLogs(resortId: number): Promise<ResortLiftLogsByDate> {
-  const endDate = new Date('2025-03-20');
-  const startDate = new Date('2025-03-20');
+  // const endDate = new Date('2025-03-20');
+  // const startDate = new Date('2025-03-20');
+  const endDate = new Date();
+  const startDate = new Date();
   startDate.setDate(startDate.getDate() - 1); // 7日前からのデータを取得
   // startDate.setDate(startDate.getDate() - 1); // 1日前からのデータを取得
   

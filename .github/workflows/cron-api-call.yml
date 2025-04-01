@@ -10,7 +10,17 @@ on:
 jobs:
   update-lift-statuses:
     runs-on: ubuntu-latest
+    container:
+      image: curlimages/curl:latest
+    # 高速化のための設定
+    concurrency:
+      group: update-lift-statuses
+      cancel-in-progress: true
     steps:
+      - name: Install jq
+        run: |
+          apk add --no-cache jq
+      
       - name: Call Update API
         id: api_call
         run: |
