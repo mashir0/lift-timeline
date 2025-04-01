@@ -33,56 +33,64 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
     
     console.log(`${Object.keys(resorts).length}件のスキー場情報を取得しました。更新を開始します...`);
     
-    // 各スキー場のリフト情報を更新
-    const results = await Promise.all(
-      Object.entries(resorts).map(async ([id, resort]) => {
-        let errorSource = ''; // エラーが発生した場所（API or DB）
-        let errorDetail = ''; // エラーの詳細
+    // すべてのリゾートのAPIデータを取得するためのコンテナ
+    const allStatusData = [];
+    const results = [];
+    const resortsEntries = Object.entries(resorts);
+    
+    // Step 1: すべてのリゾートからAPIデータを取得する
+    for (const [id, resort] of resortsEntries) {
+      try {
+        console.log(`スキー場ID ${id} (${resort.name}) のリフト情報を取得中...`);
+        const statuses = await fetchYukiyamaApi(id);
+        console.log(`スキー場ID ${id} のリフト情報を ${statuses.length}件取得しました。`);
         
-        try {
-          // ステップ1: APIからリフト情報を取得
-          console.log(`スキー場ID ${id} (${resort.name}) のリフト情報を取得中...`);
-          
-          try {
-            const statuses = await fetchYukiyamaApi(id);
-            console.log(`スキー場ID ${id} のリフト情報を ${statuses.length}件取得しました。`);
-            
-            // ステップ2: DBに保存
-            try {
-              const saveResult = await saveToLiftStatus(statuses);
-              console.log(`スキー場ID ${id}: ${saveResult.message}`);
-              
-              // 成功レスポンスを返す
-              return {
-                resortId: id,
-                resortName: resort.name,
-                success: true,
-                count: statuses.length
-              };
-            } catch (dbError) {
-              // Supabase保存エラー
-              errorSource = 'DB保存';
-              errorDetail = dbError instanceof Error ? dbError.message : JSON.stringify(dbError);
-              throw dbError; // 外側のcatchに処理を渡す
-            }
-          } catch (apiError) {
-            // YukiyamaAPI取得エラー
-            errorSource = 'API取得';
-            errorDetail = apiError instanceof Error ? apiError.message : JSON.stringify(apiError);
-            throw apiError; // 外側のcatchに処理を渡す
+        // 取得したデータをすぐに保存せず、一時配列に追加
+        allStatusData.push(...statuses);
+        
+        // 取得成功情報を記録
+        results.push({
+          resortId: id,
+          resortName: resort.name,
+          success: true,
+          count: statuses.length
+        });
+      } catch (apiError) {
+        // API取得エラー
+        console.error(`スキー場ID ${id} のAPI取得処理中にエラー:`, apiError);
+        const errorDetail = apiError instanceof Error ? apiError.message : JSON.stringify(apiError);
+        results.push({
+          resortId: id,
+          resortName: resort.name,
+          success: false,
+          error: `[API取得エラー] ${errorDetail}`
+        });
+      }
+    }
+    
+    console.log(`全スキー場からのデータ取得完了。合計 ${allStatusData.length}件のリフト情報をまとめて保存します...`);
+    
+    // Step 2: 全データを一括で保存
+    if (allStatusData.length > 0) {
+      try {
+        const saveResult = await saveToLiftStatus(allStatusData);
+        console.log(`一括保存完了: ${saveResult.message}`);
+      } catch (dbError) {
+        // DB保存エラー
+        console.error(`リフトデータの一括保存中にエラー:`, dbError);
+        const errorDetail = dbError instanceof Error ? dbError.message : JSON.stringify(dbError);
+        
+        // 保存エラーの場合、各リゾートの処理を失敗としてマーク
+        results.forEach(result => {
+          if (result.success) {
+            result.success = false;
+            result.error = `[DB保存エラー] ${errorDetail}`;
           }
-        } catch (error) {
-          // エラーの種類を明示して記録
-          console.error(`スキー場ID ${id} の${errorSource}処理中にエラー:`, error);
-          return {
-            resortId: id,
-            resortName: resort.name,
-            success: false,
-            error: `[${errorSource}エラー] ${errorDetail || (error instanceof Error ? error.message : String(error))}`
-          };
-        }
-      })
-    );
+        });
+      }
+    } else {
+      console.warn('保存するリフトデータがありません。');
+    }
     
     // 成功・失敗の集計とエラー内容の収集
     const successCount = results.filter(r => r.success).length;
@@ -102,7 +110,6 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
       message: `${Object.keys(resorts).length}件中${successCount}件のスキー場情報を更新しました。`,
       details: results
     };
-    
   } catch (error) {
     // 予期せぬ全体的なエラー
     const errorMessage = error instanceof Error 
