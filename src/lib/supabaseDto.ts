@@ -1,5 +1,6 @@
 import { fetchTable, insertTable } from './supabase';
 import { DBLiftStatusJst, ResortLiftLogsByDate, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto } from '@/types';
+import dayjs from '@/util/dayjs';
 
 // Resorts一覧　id: {name, map_url}
 export async function getAllResorts(): Promise<ResortsDto> {
@@ -30,19 +31,15 @@ export async function getAllLifts(): Promise<LiftsDto> {
 }
 
 // LiftStatus一覧 resort_id: {yyyy-mm-dd: {lift_id: {status, created_at}}}
-export async function fetchWeeklyLiftLogs(resortId: number): Promise<ResortLiftLogsByDate> {
-  // const endDate = new Date('2025-03-20');
-  // const startDate = new Date('2025-03-20');
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 1); // 7日前からのデータを取得
-  // startDate.setDate(startDate.getDate() - 1); // 1日前からのデータを取得
+export async function fetchWeeklyLiftLogs(resortId: number, currentDate: string): Promise<ResortLiftLogsByDate> {
+  const fromDate = dayjs.tz(currentDate, 'Asia/Tokyo').toDate();
+  const toDate   = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
   
-  const data = await fetchTable<DBLiftStatusJst>('lift_status_jst', {
+  const data = await fetchTable<DBLiftStatusJst>('lift_status_view', {
     resort_id: resortId,
     created_at: {
-      gte: startDate.toISOString(),
-      lte: endDate.toISOString()
+      gte: fromDate, // 以上
+      lt: toDate // 未満
     }
   });
 
@@ -50,6 +47,14 @@ export async function fetchWeeklyLiftLogs(resortId: number): Promise<ResortLiftL
     console.error('Error fetching lift statuses: data is null');
     return {};
   }
+  
+  // データ集計を完了してから一度だけログを出力
+  const sum = data.reduce((acc, log) => {
+    const date = acc[log.created_at] || 0;
+    acc[log.created_at] = date + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  console.log(`リゾートID ${resortId} の時間帯別データ件数:`, sum);
 
   // 日付、リフトIDでグループ化
   const groupedLogs: ResortLiftLogsByDate = {};

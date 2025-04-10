@@ -20,8 +20,6 @@ export function TimelineControls({
   onModeChange,
   availableDates,
 }: TimelineControlsProps) {
-  const currentDateStr = currentDate.toISOString().split('T')[0];
-  // const todayStr = new Date().toISOString().split('T')[0];
   const todayStr = currentDate.toISOString().split('T')[0];
   
   // 前日の日付文字列を取得

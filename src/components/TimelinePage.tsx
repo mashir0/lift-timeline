@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { TimelineControls } from '@/components/TimelineControls';
 import { ResortCard } from '@/components/ResortCard';
 import { Legend } from '@/components/Legend';
+import { utcToJst } from '@/util/date';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 
 type TimelinePageProps = {
@@ -15,8 +16,7 @@ type TimelinePageProps = {
 
 export function TimelinePage({ initialResorts, initialLifts, initialLogs }: TimelinePageProps) {
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
-  // const today = new Date('2025-03-19');
-  const today = new Date();
+  const today = new Date(utcToJst(new Date())); // 明示的にJSTで取得
   const [currentDate, setCurrentDate] = useState(today);
   const [lastUpdated, setLastUpdated] = useState(today);
   const [allResort] = useState(initialResorts);

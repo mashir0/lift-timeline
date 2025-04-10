@@ -7,13 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-		"cf:build": "npx @cloudflare/next-on-pages",
-		"preview": "npm run cf:build && wrangler pages dev",
-		"deploy": "npm run cf:build && wrangler pages deploy"
+    "cf:build": "npx @cloudflare/next-on-pages",
+    "preview": "npm run cf:build && wrangler pages dev",
+    "deploy": "npm run cf:build && wrangler pages deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "date-fns": "^2.30.0",
+    "dayjs": "^1.11.13",
     "lucide-react": "^0.294.0",
     "next": "^14.1.0",
     "react": "^18.2.0",

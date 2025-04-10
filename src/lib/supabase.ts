@@ -1,5 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { DBQuery, DBLiftStatus, YukiyamaResponse } from '@/types';
+import { utcToJst } from '@/util/date';
+
+// 並び順とページネーションのオプション型
+export type FetchOptions = {
+  limit: number;
+  order?: Array<{
+    column: string;
+    ascending: boolean;
+  }>;
+  // オフセットベースのページネーション
+  page?: number;
+};
 
 /******************************************
  * Supabase base function
@@ -36,7 +48,11 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
 }
 
 // テーブルからデータを取得する関数
-export const fetchTable = async <T>(table: string, query: DBQuery = {}): Promise<T[]> => {
+export const fetchTable = async <T>(
+  table: string, 
+  query: DBQuery = {}, 
+  options: FetchOptions = {limit: 1000}
+): Promise<T[]> => {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -45,39 +61,70 @@ export const fetchTable = async <T>(table: string, query: DBQuery = {}): Promise
   }
 
   // クエリパラメータを分離
-  const { resort_id, created_at, ...otherParams } = query;
+  // const { resort_id, created_at, ...otherParams } = query;
+  const { resort_id, created_at } = query;
   
   let queryBuilder = supabase
     .from(table)
     .select('*');
 
+  // クエリパラメータの設定 ------------------------------------------------------
   // リゾートIDでフィルタリング
   if (resort_id) {
     queryBuilder = queryBuilder.eq('resort_id', resort_id);
   }
 
-  // created_atの範囲でフィルタリング
-  if (created_at?.gte) {
-    queryBuilder = queryBuilder.gte('created_at', created_at.gte);
-  }
-  if (created_at?.lte) {
-    queryBuilder = queryBuilder.lte('created_at', created_at.lte);
+  // 日付範囲クエリ
+  if (created_at) {
+    Object.entries(created_at).forEach(([filter, date]) => {
+      queryBuilder = queryBuilder.filter('created_at', filter, date.toISOString());
+      console.log('🚀 ~ Object.entries ~ filter, date.toISOString():', filter, date.toISOString())
+    });
   }
 
-  // その他のパラメータでフィルタリング
-  Object.entries(otherParams).forEach(([key, value]) => {
-    if (value !== undefined) {
-      queryBuilder = queryBuilder.eq(key, value);
+  // Optionsの設定 ------------------------------------------------------------
+  // 並び順の設定
+  if (options?.order && options.order.length > 0) {
+    options.order.forEach(({ column, ascending }) => {
+      queryBuilder = queryBuilder.order(column, { ascending: ascending });
+    });
+  }
+
+  // 取得件数の制限
+  if (options?.limit) {
+    queryBuilder = queryBuilder.limit(options.limit);
+  }
+
+  // ページネーション ------------------------------------------------------------
+  let allData: any[] = [];
+  let hasMore = true;
+  let from = (options?.page) ? (options.page - 1) * options.limit : 0; // ページ指定の場合はオフセットを計算
+  let to = from + options.limit - 1;
+    
+  while (hasMore) {
+    // 現在のオフセットから一定数のデータを取得
+    const { data, error } = await queryBuilder.range(from, to);
+    
+    if (error) {
+      console.error('Error fetching data:', error);
+      return [];
     }
-  });
-
-  const { data, error } = await queryBuilder;
-
-  if (error) {
-    console.error('Error fetching data:', error);
-    return [];
+    
+    if (data && data.length > 0) {
+      allData = [...allData, ...data];
+      from += options.limit;
+      to = from + options.limit - 1;
+      
+      // 取得件数がlimitより少ない or ページ指定の場合は終了
+      if (data.length < options.limit || options?.page) {
+        hasMore = false;
+      }
+    } else {
+      // データがない場合は終了
+      hasMore = false;
+    }
   }
-  return (data || []) as T[];
+  return allData as T[];
 };
 
 // テーブルにデータを保存する関数

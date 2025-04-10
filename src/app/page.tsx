@@ -7,6 +7,7 @@ export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
 
+
 export default async function Home() {
   try {
     const logs: AllResortsLiftLogs = {};
@@ -18,7 +19,7 @@ export default async function Home() {
     // リゾートごとにデータを取得
     await Promise.all(
       Object.keys(resorts).map(async (resortId) => {
-        const resortLogs = await fetchWeeklyLiftLogs(Number(resortId));
+        const resortLogs = await fetchWeeklyLiftLogs(Number(resortId), '2025-04-08');
         if (Object.keys(resortLogs).length > 0) {
           logs[Number(resortId)] = resortLogs;
         }

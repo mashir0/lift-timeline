@@ -28,14 +28,21 @@ export type YukiyamaResponse = LiftBase & {
 /***
  * Supabase 関連の型定義
  ***/
+// DBクエリのためのタイプ定義
 export type DBQuery = {
   resort_id?: number;
   created_at?: {
-    gte?: string;
-    lte?: string;
+    gte?: Date;
+    lte?: Date;
+    gt?: Date;
+    lt?: Date;
   };
-  [key: string]: any;
-};
+  // range?: {
+  //   from: string | number;
+  //   to: string | number;
+  // };
+  // [key: string]: any;
+} 
 
 // DBのSki Resortの型(ski_resorts)
 export type DBResort = {
