@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { DBQuery, DBLiftStatus, YukiyamaResponse } from '@/types';
-import { utcToJst } from '@/util/date';
 
 // 並び順とページネーションのオプション型
 export type FetchOptions = {

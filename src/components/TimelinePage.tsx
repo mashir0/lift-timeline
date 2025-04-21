@@ -5,20 +5,25 @@ import { Header } from '@/components/Header';
 import { TimelineControls } from '@/components/TimelineControls';
 import { ResortCard } from '@/components/ResortCard';
 import { Legend } from '@/components/Legend';
-import { utcToJst } from '@/util/date';
+// import { utcToJst } from '@/util/date';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
+import dayjs from '@/util/dayjs';
+import type { Dayjs } from 'dayjs';
 
 type TimelinePageProps = {
   initialResorts: ResortsDto;
   initialLifts: LiftsDto;
   initialLogs: AllResortsLiftLogs;
+  todayString: string;
 };
 
-export function TimelinePage({ initialResorts, initialLifts, initialLogs }: TimelinePageProps) {
+export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayString }: TimelinePageProps) {
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
-  const today = new Date(utcToJst(new Date())); // 明示的にJSTで取得
-  const [currentDate, setCurrentDate] = useState(today);
+
+  const today = dayjs.tz(todayString, 'Asia/Tokyo');
+  const [currentDate, setCurrentDate] = useState<Dayjs>(today);
   const [lastUpdated, setLastUpdated] = useState(today);
+
   const [allResort] = useState(initialResorts);
   const [allLift] = useState(initialLifts);
   const [liftLogs] = useState(initialLogs);
@@ -33,33 +38,33 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs }: Time
   );
 
   const handleRefresh = () => {
-    setLastUpdated(new Date());
+    setLastUpdated(dayjs());
+  };
+
+  const setNewDate = (date: Dayjs) => {
+    setCurrentDate(date);
   };
 
   const handlePrevious = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() - 1);
-    setCurrentDate(newDate);
+    setNewDate(currentDate.subtract(1, 'day'));
   };
 
   const handleNext = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + 1);
-    setCurrentDate(newDate);
+    setNewDate(currentDate.add(1, 'day'));
   };
 
   const handleToday = () => {
-    setCurrentDate(today);
+    setNewDate(today);
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header lastUpdated={lastUpdated} onRefresh={handleRefresh} />
+      <Header lastUpdated={lastUpdated.toDate()} onRefresh={handleRefresh} />
       
       <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
         <TimelineControls
           mode={mode}
-          currentDate={currentDate}
+          currentDate={currentDate.toDate()}
           onPrevious={handlePrevious}
           onNext={handleNext}
           onToday={handleToday}
@@ -69,7 +74,7 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs }: Time
         
         <div className="space-y-4">
           {Object.entries(liftLogs).map(([resortId, resortLiftLogs]) => {
-            const dateKey = currentDate.toISOString().split('T')[0];
+            const dateKey = currentDate.format('YYYY-MM-DD');
             const dateLiftLogs = resortLiftLogs[dateKey] || {};
           
             return (
@@ -78,7 +83,7 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs }: Time
                 resort={allResort[Number(resortId)]}
                 lifts={allLift[Number(resortId)]}
                 mode={mode}
-                currentDate={currentDate}
+                currentDate={currentDate.toISOString()}
                 liftLogs={dateLiftLogs}
               />
             );

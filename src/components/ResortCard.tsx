@@ -2,10 +2,11 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Map } from 'lucide-react';
 import type { ResortsDto, LiftsDto, OneDayLiftLogs } from '@/types';
 import { StatusBar } from './StatusBar';
+import dayjs from '@/util/dayjs';
 
 type ResortCardProps = {
   mode: 'daily' | 'weekly';
-  currentDate: Date;
+  currentDate: string;
   resort: ResortsDto[number];
   lifts: LiftsDto[number];
   liftLogs: OneDayLiftLogs;
@@ -37,8 +38,8 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
     const hours = new Set<number>();
     Object.values(liftLogs).forEach(logs => {
       logs.forEach(log => {
-        const logTime = new Date(log.created_at);
-        hours.add(logTime.getHours());
+        const logTime = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo');
+        hours.add(logTime.hour());
       });
     });
     return Array.from(hours).sort((a, b) => a - b);
@@ -102,7 +103,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
                   
                     <div className="relative h-6 w-full">
                       <StatusBar
-                        liftId={liftId}
+                        // liftId={liftId}
                         liftLogs={status}
                         currentDate={currentDate}
                         availableHours={availableHours}

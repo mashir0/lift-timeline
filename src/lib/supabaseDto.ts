@@ -33,7 +33,7 @@ export async function getAllLifts(): Promise<LiftsDto> {
 // LiftStatus一覧 resort_id: {yyyy-mm-dd: {lift_id: {status, created_at}}}
 export async function fetchWeeklyLiftLogs(resortId: number, currentDate: string): Promise<ResortLiftLogsByDate> {
   const fromDate = dayjs.tz(currentDate, 'Asia/Tokyo').toDate();
-  const toDate   = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
+  const toDate = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
   
   const data = await fetchTable<DBLiftStatusJst>('lift_status_view', {
     resort_id: resortId,
@@ -48,20 +48,20 @@ export async function fetchWeeklyLiftLogs(resortId: number, currentDate: string)
     return {};
   }
   
-  // データ集計を完了してから一度だけログを出力
-  const sum = data.reduce((acc, log) => {
-    const date = acc[log.created_at] || 0;
-    acc[log.created_at] = date + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  console.log(`リゾートID ${resortId} の時間帯別データ件数:`, sum);
+  // // データ集計を完了してから一度だけログを出力
+  // const sum = data.reduce((acc, log) => {
+  //   const date = acc[log.created_at] || 0;
+  //   acc[log.created_at] = date + 1;
+  //   return acc;
+  // }, {} as Record<string, number>);
+  // console.log(`リゾートID ${resortId} の時間帯別データ件数:`, sum);
 
   // 日付、リフトIDでグループ化
   const groupedLogs: ResortLiftLogsByDate = {};
   
   data?.forEach((log: DBLiftStatusJst) => {
-    // 日付（YYYY-MM-DD）を取得
-    const date = log.created_at.split('T')[0];
+    // UTC記述の時間をJSTに変換
+    const date = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').format('YYYY-MM-DD');
 
     // 日付のグループを初期化
     if (!groupedLogs[date]) {

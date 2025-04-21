@@ -1,83 +1,57 @@
 import React from 'react';
-import { toJST } from '@/lib/utils';
 import type { liftStatus } from '@/types';
-import { defaultStatusJa } from '@/lib/constants';
+import { defaultStatusJa, getStatusColor } from '@/lib/constants';
+import dayjs from '@/util/dayjs';
+import type { Dayjs } from 'dayjs';
+
 type StatusBarProps = {
-  liftId: string;
+  // liftId: string;
   liftLogs: liftStatus[];
-  currentDate: Date;
+  currentDate: string;
   availableHours: number[];
   totalSegments: number;
 };
 
-const SEGMENTS_PER_HOUR = 12; // 5分単位
+const SEGMENTS_PER_HOUR = 4; // 5分単位
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'OPERATING':
-      return 'bg-green-200 hover:bg-green-300';
-    case 'OPERATION_SLOWED':
-      return 'bg-blue-200 hover:bg-blue-300';
-    case 'STANDBY':
-      return 'bg-yellow-200 hover:bg-yellow-300';
-    case 'SUSPENDED':
-      return 'bg-red-200 hover:bg-red-300';
-    case 'OPERATION_TEMPORARILY_SUSPENDED':
-      return 'bg-red-200 hover:bg-red-300';
-    case 'TODAY_CLOSED':
-      return 'bg-red-200 hover:bg-red-300';
-    case 'undefined':
-      return 'bg-gray-50 hover:bg-gray-100';
-    default:
-      return 'bg-gray-200 hover:bg-gray-300';
-  }
-};
+// 現在時刻（JST）を取得
+const now = dayjs.tz(new Date(), 'Asia/Tokyo');
 
 const formatTime = (hour: number, minute: number) => {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 };
 
-const isSameDay = (date1: Date, date2: Date): boolean => {
-  return date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate();
+const isSameDay = (date1: Dayjs, date2: Dayjs): boolean => {
+  return date1.isSame(date2, 'day');
 };
 
-export function StatusBar({ liftId, liftLogs, currentDate, availableHours, totalSegments }: StatusBarProps) {
-
-  // console.log("liftId in StatusBar", liftId);  
-  // console.log("liftLogs in StatusBar", liftLogs);  
-  // console.log("currentDate in StatusBar", currentDate);  
-  // console.log("availableHours in StatusBar", availableHours);  
-  // console.log("totalSegments in StatusBar", totalSegments);  
+export function StatusBar({ liftLogs, currentDate, availableHours, totalSegments }: StatusBarProps) {
 
   // セグメントごとのステータスを取得する関数
-  const getStatusForSegment = (liftId: string, hourIndex: number, segmentIndex: number) => {
-    const hour = availableHours[hourIndex];
-    const minute = segmentIndex * 5;
-    const targetTime = new Date(currentDate);
-    targetTime.setHours(hour, minute, 0, 0);
-
-    // 現在時刻（JST）を取得
-    const now = toJST(new Date());
+  const getStatusForSegment = (hour: number, minute: number) => {
+    const targetTime = dayjs.tz(currentDate, 'UTC').tz('Asia/Tokyo')
+      .hour(hour)
+      .minute(minute)
+      .startOf('minute');
 
     // 対象の時間が現在時刻より未来の場合は、未定義のステータスを返す
-    if ( targetTime> now || (isSameDay(targetTime, now) && targetTime > now)) {
+    if (targetTime.isAfter(now) || (isSameDay(targetTime, now) && targetTime.isAfter(now))) {
       return { status: 'undefined', created_at: targetTime.toISOString() };
     }
 
-    // その時点での最新のステータスを取得（JST）
+    // 降順（新しい順）でソートそのセグメントで最新のLogを取得し
     const liftLog = liftLogs
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .find(log => new Date(log.created_at) <= targetTime);
+      .find(log => new Date(log.created_at) <= targetTime.toDate());
 
+    console.log(liftLog,targetTime.toISOString(),hour,minute);
     return liftLog || { status: 'outside-hours', created_at: targetTime.toISOString() };
   };
 
   // セグメントごとのステータスを取得
-  const segments = availableHours.flatMap((_, hourIndex) => 
+  const segments = availableHours.flatMap((hour, _) => 
     Array.from({ length: SEGMENTS_PER_HOUR }, (_, segmentIndex) => 
-      getStatusForSegment(liftId, hourIndex, segmentIndex)
+      getStatusForSegment(hour, segmentIndex * (60 / SEGMENTS_PER_HOUR))
     )
   );
 
