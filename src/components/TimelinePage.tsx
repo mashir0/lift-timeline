@@ -5,7 +5,6 @@ import { Header } from '@/components/Header';
 import { TimelineControls } from '@/components/TimelineControls';
 import { ResortCard } from '@/components/ResortCard';
 import { Legend } from '@/components/Legend';
-// import { utcToJst } from '@/util/date';
 import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
 import dayjs from '@/util/dayjs';
 import type { Dayjs } from 'dayjs';
@@ -28,14 +27,14 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
   const [allLift] = useState(initialLifts);
   const [liftLogs] = useState(initialLogs);
 
-  const availableDates = Object.keys(
-    Object.values(liftLogs).reduce((acc, resortLogs) => {
-      Object.keys(resortLogs).forEach(date => {
-        acc[date] = true;
-      });
-      return acc;
-    }, {} as Record<string, boolean>)
-  );
+  // const availableDates = Object.keys(
+  //   Object.values(liftLogs).reduce((acc, resortLogs) => {
+  //     Object.keys(resortLogs).forEach(date => {
+  //       acc[date] = true;
+  //     });
+  //     return acc;
+  //   }, {} as Record<string, boolean>)
+  // );
 
   const handleRefresh = () => {
     setLastUpdated(dayjs());
@@ -64,12 +63,12 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
       <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
         <TimelineControls
           mode={mode}
-          currentDate={currentDate.toDate()}
+          today={today}
+          currentDate={currentDate}
           onPrevious={handlePrevious}
           onNext={handleNext}
           onToday={handleToday}
           onModeChange={setMode}
-          availableDates={availableDates}
         />
         
         <div className="space-y-4">

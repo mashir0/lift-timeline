@@ -44,7 +44,6 @@ export function StatusBar({ liftLogs, currentDate, availableHours, totalSegments
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .find(log => new Date(log.created_at) <= targetTime.toDate());
 
-    console.log(liftLog,targetTime.toISOString(),hour,minute);
     return liftLog || { status: 'outside-hours', created_at: targetTime.toISOString() };
   };
 

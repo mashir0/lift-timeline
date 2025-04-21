@@ -77,7 +77,7 @@ export const fetchTable = async <T>(
   if (created_at) {
     Object.entries(created_at).forEach(([filter, date]) => {
       queryBuilder = queryBuilder.filter('created_at', filter, date.toISOString());
-      console.log('🚀 ~ Object.entries ~ filter, date.toISOString():', filter, date.toISOString())
+      // console.log('🚀 ~ Object.entries ~ filter, date.toISOString():', filter, date.toISOString())
     });
   }
 
