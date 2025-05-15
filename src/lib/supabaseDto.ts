@@ -1,8 +1,11 @@
 import { fetchTable, insertTable } from './supabase';
-import { DBLiftStatusJst, ResortLiftLogsByDate, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto } from '@/types';
+import { DBLiftStatusView, OneDayLiftLogs, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto, liftStatus, LiftSegment, LiftSegmentsByLiftId, OperationStatus } from '@/types';
 import dayjs from '@/util/dayjs';
+import { SEGMENTS_PER_HOUR, ONE_SEGMENT_MINUTES } from './constants';
 
-// Resorts一覧　id: {name, map_url}
+/* ------------------------------------------------------------
+ * スキー場一覧の取得
+ * ------------------------------------------------------------ */
 export async function getAllResorts(): Promise<ResortsDto> {
   const resorts = await fetchTable<DBResort>('ski_resorts');
   return resorts.reduce((acc, resort) => ({
@@ -14,7 +17,9 @@ export async function getAllResorts(): Promise<ResortsDto> {
   }), {});
 }
 
-// Lifts一覧　id: {name, start_time, end_time}
+/* ------------------------------------------------------------
+ * リフト一覧の取得
+ * ------------------------------------------------------------ */
 export async function getAllLifts(): Promise<LiftsDto> {
   const lifts = await fetchTable<DBLift>('lifts');
   return lifts.reduce((acc, lift) => ({
@@ -30,58 +35,118 @@ export async function getAllLifts(): Promise<LiftsDto> {
   }), {} as LiftsDto);
 }
 
+/* ------------------------------------------------------------
+ * StatusBarの計算 
+ * ------------------------------------------------------------ */
+// 時間を1セグメントごとに丸める
+const roundMinutes = (dayjs: dayjs.Dayjs): dayjs.Dayjs => {
+  const minutes = Math.floor(dayjs.minute() / ONE_SEGMENT_MINUTES) * ONE_SEGMENT_MINUTES;
+  return dayjs.minute(minutes).startOf('minute');
+}
+
+// リフトのログからstatus barのどの位置にstatusを表示するかを計算する
+const getSegmentsAndGroups = (liftLogs: liftStatus[], availableHours: number[]): LiftSegment[] => {
+  const now = dayjs.tz(new Date(), 'UTC');
+  const segments = availableHours.flatMap(hour => 
+    Array.from({ length: SEGMENTS_PER_HOUR }, (_, segmentIndex) => {
+      const targetTime = dayjs.tz(liftLogs[0].created_at, 'UTC').tz('Asia/Tokyo')
+        .hour(hour)
+        .minute(segmentIndex * ONE_SEGMENT_MINUTES)
+        .startOf('minute')
+        .utc();
+        
+      const outside: liftStatus = {
+        status: 'outside-hours' as OperationStatus, 
+        created_at: targetTime.toISOString(), 
+        round_created_at: targetTime.toISOString()
+      }
+
+      if (targetTime.isAfter(now)) {
+        return outside;
+      }
+
+      // targetTimeより後ろの時間の最初のlogを取得
+      return liftLogs.find( log => dayjs.tz(log.created_at, 'UTC').isAfter(targetTime)) || outside;
+    })
+  );
+
+  return segments.reduce((acc, status, index) => {
+    if (index === 0 || status.status !== segments[index - 1].status) {
+      acc.push({ ...status, startIndex: index, count: 1 });
+    } else {
+      acc[acc.length - 1].count++;
+    }
+    return acc;
+  }, [] as LiftSegment[]);
+};
+
 // LiftStatus一覧 resort_id: {yyyy-mm-dd: {lift_id: {status, created_at}}}
-export async function fetchWeeklyLiftLogs(resortId: number, currentDate: string): Promise<ResortLiftLogsByDate> {
+export async function fetchOneDayLiftLogs(
+  resortId: number, 
+  currentDate: string
+): Promise<LiftSegmentsByLiftId> {
   const fromDate = dayjs.tz(currentDate, 'Asia/Tokyo').toDate();
   const toDate = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
   
-  const data = await fetchTable<DBLiftStatusJst>('lift_status_view', {
+  // リフト運行ログデータ取得
+  const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
     resort_id: resortId,
-    created_at: {
-      gte: fromDate, // 以上
-      lt: toDate // 未満
-    }
+    created_at: { gte: fromDate, lt: toDate } // gte:以上 lt:未満
   });
 
   if (!data) {
     console.error('Error fetching lift statuses: data is null');
-    return {};
+    return { liftSegments: {}, hours: [] };
   }
-  
-  // // データ集計を完了してから一度だけログを出力
-  // const sum = data.reduce((acc, log) => {
-  //   const date = acc[log.created_at] || 0;
-  //   acc[log.created_at] = date + 1;
-  //   return acc;
-  // }, {} as Record<string, number>);
-  // console.log(`リゾートID ${resortId} の時間帯別データ件数:`, sum);
 
-  // 日付、リフトIDでグループ化
-  const groupedLogs: ResortLiftLogsByDate = {};
-  
-  data?.forEach((log: DBLiftStatusJst) => {
-    // UTC記述の時間をJSTに変換
-    const date = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').format('YYYY-MM-DD');
+  const result = data.reduce((acc, log: DBLiftStatusView) => {
+    // 時間帯を追加
+    acc.hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
 
-    // 日付のグループを初期化
-    if (!groupedLogs[date]) {
-      groupedLogs[date] = {};
-    }
-
-    // リフトIDのグループを初期化
-    if (!groupedLogs[date][log.lift_id]) {
-      groupedLogs[date][log.lift_id] = [];
+    // リフトIDのグループを初期化（存在しない場合）
+    if (!acc.logsByLiftId[log.lift_id]) {
+      acc.logsByLiftId[log.lift_id] = [];
     }
     
-    // ログを追加
-    groupedLogs[date][log.lift_id].push({
-      status: log.status,
-      created_at: log.created_at
-    });
+    // 最後のログのステータスを取得
+    const lastStatus = acc.logsByLiftId[log.lift_id].at(-1);
+    
+    // 連続する同じステータㇲは無視
+    if (!(lastStatus && lastStatus.status === log.status)) {
+      const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+
+      // 同じ時間のログがある場合は、1つ前のログを削除
+      if ( roundCreatedAt === lastStatus?.round_created_at ) {
+        acc.logsByLiftId[log.lift_id].pop();
+      }
+
+      // ログを追加
+      acc.logsByLiftId[log.lift_id].push({
+        status: log.status,
+        created_at: log.created_at,
+        round_created_at: roundCreatedAt,
+      });
+    }
+    return acc;
+  }, { 
+    logsByLiftId: {} as OneDayLiftLogs, 
+    hours: new Set<number>(),
   });
-  return groupedLogs;
+
+  // 時間帯を配列に変換してソート
+  const hours = Array.from(result.hours).sort((a, b) => a - b);
+  
+  // 各リフトのセグメントとグループを計算
+  const liftSegments = Object.entries(result.logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
+    acc[Number(liftId)] = getSegmentsAndGroups(liftLogs, hours);
+    return acc;
+  }, {} as { [liftId: number]: LiftSegment[] });
+  return { liftSegments, hours };
 }
 
+/* ------------------------------------------------------------
+ * リフトのステータスを保存する
+ * ------------------------------------------------------------ */
 export async function saveLiftStatus(apiResponse: YukiyamaResponse[]): Promise<void> {
   await insertTable<DBLiftStatus>('lift_status', 
     apiResponse.map((res) => ({
@@ -93,6 +158,3 @@ export async function saveLiftStatus(apiResponse: YukiyamaResponse[]): Promise<v
     }))
   );
 }
-
-// フロントエンド側でも静的に使えるように
-export const DEFAULT_RESORT_ID = '230'; // スキー場のデフォルトID 

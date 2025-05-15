@@ -1,25 +1,19 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Map } from 'lucide-react';
-import type { ResortsDto, LiftsDto, OneDayLiftLogs } from '@/types';
+import type { ResortsDto, LiftsDto, LiftSegmentsByLiftId } from '@/types';
 import { StatusBar } from './StatusBar';
-import dayjs from '@/util/dayjs';
+// import dayjs from '@/util/dayjs';
 
 type ResortCardProps = {
   mode: 'daily' | 'weekly';
-  currentDate: string;
   resort: ResortsDto[number];
   lifts: LiftsDto[number];
-  liftLogs: OneDayLiftLogs;
+  liftLogs: LiftSegmentsByLiftId;
 };
 
-const HOURS = Array.from({ length: 11 }, (_, i) => i + 7);
-const SEGMENTS_PER_HOUR = 12; // 5分単位
-
-export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: ResortCardProps) {
-
+export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-
   const showTooltip = useCallback((e: React.MouseEvent<HTMLSpanElement>, text: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({
@@ -33,20 +27,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
     setTooltip(null);
   }, []);
 
-  // 利用可能な時間帯を取得
-  const getAvailableHours = () => {
-    const hours = new Set<number>();
-    Object.values(liftLogs).forEach(logs => {
-      logs.forEach(log => {
-        const logTime = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo');
-        hours.add(logTime.hour());
-      });
-    });
-    return Array.from(hours).sort((a, b) => a - b);
-  };
-
-  const availableHours = getAvailableHours();
-  const totalSegments = availableHours.length * SEGMENTS_PER_HOUR;
+  const availableHours = liftLogs.hours; 
 
   return (
     <>
@@ -90,7 +71,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
               
               {/* リフトごとのタイムライン */}
               <div className="space-y-4 w-full">
-                {Object.entries(liftLogs).map(([liftId, status]) => ( 
+                {Object.entries(liftLogs.liftSegments).map(([liftId, status]) => ( 
                   <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full"> 
                     <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
                       <span className="truncate cursor-help"
@@ -102,13 +83,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
                     </div>
                   
                     <div className="relative h-6 w-full">
-                      <StatusBar
-                        // liftId={liftId}
-                        liftLogs={status}
-                        currentDate={currentDate}
-                        availableHours={availableHours}
-                        totalSegments={totalSegments}
-                      />
+                      <StatusBar liftSegments={status} />
                     </div>
                   </div>
                 ))}

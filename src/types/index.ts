@@ -4,7 +4,8 @@ export type OperationStatus =
   "STANDBY" |
   "SUSPENDED" |
   "OPERATION_TEMPORARILY_SUSPENDED" |
-  "TODAY_CLOSED";
+  "TODAY_CLOSED" |
+  "outside-hours";
 
 /***
  * Yukiyama API関連の型定義
@@ -74,7 +75,7 @@ export type DBLiftStatus = {
 
 // DBのLift Statusの型(lift_status_jst)
 // list_statusをJSTに変更したり、他のテーブルからSelectしたView
-export type DBLiftStatusJst = DBLiftStatus & {
+export type DBLiftStatusView = DBLiftStatus & {
   id: string;
   lift_name: string;
   resort_id: number;
@@ -108,7 +109,23 @@ export type LiftsDto = {
 export type liftStatus = {
   status: OperationStatus;
   created_at: string;
+  round_created_at: string;
 }
+
+export type LiftSegment = liftStatus & {
+  startIndex: number;
+  count: number;
+};
+
+export type LiftSegmentsByLiftId = {
+  hours: number[];
+  liftSegments: {
+    [liftId: number]: Array<LiftSegment>;
+  };
+};
+
+
+
 
 // 1日分のリゾート内の全リフト運行ログ
 export type OneDayLiftLogs = {
@@ -117,10 +134,11 @@ export type OneDayLiftLogs = {
 
 // リゾート1つの日付ごとの運行ログ
 export type ResortLiftLogsByDate = {
-  [date: string]: OneDayLiftLogs;
+  [date: string]: LiftSegmentsByLiftId;
 };
 
 // 全リゾートの運行ログデータ
 export type AllResortsLiftLogs = {
   [resortId: number]: ResortLiftLogsByDate;
 };
+

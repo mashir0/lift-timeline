@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { TimelineControls } from '@/components/TimelineControls';
@@ -26,15 +25,6 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
   const [allResort] = useState(initialResorts);
   const [allLift] = useState(initialLifts);
   const [liftLogs] = useState(initialLogs);
-
-  // const availableDates = Object.keys(
-  //   Object.values(liftLogs).reduce((acc, resortLogs) => {
-  //     Object.keys(resortLogs).forEach(date => {
-  //       acc[date] = true;
-  //     });
-  //     return acc;
-  //   }, {} as Record<string, boolean>)
-  // );
 
   const handleRefresh = () => {
     setLastUpdated(dayjs());
@@ -82,7 +72,6 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
                 resort={allResort[Number(resortId)]}
                 lifts={allLift[Number(resortId)]}
                 mode={mode}
-                currentDate={currentDate.toISOString()}
                 liftLogs={dateLiftLogs}
               />
             );

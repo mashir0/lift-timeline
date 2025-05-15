@@ -1,4 +1,4 @@
-import { getAllResorts, getAllLifts, fetchWeeklyLiftLogs } from '@/lib/supabaseDto';
+import { getAllResorts, getAllLifts, fetchOneDayLiftLogs } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs } from '@/types';
 import dayjs from '@/util/dayjs';
@@ -8,6 +8,7 @@ export const runtime = 'edge';
 // export const revalidate = 300;
 
 const today = dayjs.tz('2025/04/18', 'Asia/Tokyo');
+const todayStr = today.format('YYYY-MM-DD');
 
 export default async function Home() {
   try {
@@ -16,13 +17,17 @@ export default async function Home() {
       getAllResorts(),
       getAllLifts()
     ]);
-
+    
     // リゾートごとにデータを取得
     await Promise.all(
       Object.keys(resorts).map(async (resortId) => {
-        const resortLogs = await fetchWeeklyLiftLogs(Number(resortId), today.format('YYYY-MM-DD'));
+        const resortLogs = await fetchOneDayLiftLogs(Number(resortId), todayStr);
         if (Object.keys(resortLogs).length > 0) {
-          logs[Number(resortId)] = resortLogs;
+          // リゾートIDのオブジェクトが存在しない場合は初期化
+          if (!logs[Number(resortId)]) {
+            logs[Number(resortId)] = {};
+          }
+          logs[Number(resortId)][todayStr] = resortLogs;
         }
       })
     );
@@ -31,7 +36,7 @@ export default async function Home() {
       initialResorts={resorts} 
       initialLifts={lifts} 
       initialLogs={logs} 
-      todayString={today.format('YYYY-MM-DD')}
+      todayString={todayStr}
     />;
   } catch (error) {
     console.error('Error fetching data:', error);

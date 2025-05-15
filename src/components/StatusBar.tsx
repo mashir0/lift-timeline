@@ -1,113 +1,44 @@
-import React from 'react';
-import type { liftStatus } from '@/types';
+'use client';
 import { defaultStatusJa, getStatusColor } from '@/lib/constants';
 import dayjs from '@/util/dayjs';
-import type { Dayjs } from 'dayjs';
+import type { LiftSegment } from '@/types';
 
 type StatusBarProps = {
-  // liftId: string;
-  liftLogs: liftStatus[];
-  currentDate: string;
-  availableHours: number[];
-  totalSegments: number;
+  liftSegments: LiftSegment[];
 };
 
-const SEGMENTS_PER_HOUR = 4; // 5分単位
-
-// 現在時刻（JST）を取得
-const now = dayjs.tz(new Date(), 'Asia/Tokyo');
-
-const formatTime = (hour: number, minute: number) => {
-  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-};
-
-const isSameDay = (date1: Dayjs, date2: Dayjs): boolean => {
-  return date1.isSame(date2, 'day');
-};
-
-export function StatusBar({ liftLogs, currentDate, availableHours, totalSegments }: StatusBarProps) {
-
-  // セグメントごとのステータスを取得する関数
-  const getStatusForSegment = (hour: number, minute: number) => {
-    const targetTime = dayjs.tz(currentDate, 'UTC').tz('Asia/Tokyo')
-      .hour(hour)
-      .minute(minute)
-      .startOf('minute');
-
-    // 対象の時間が現在時刻より未来の場合は、未定義のステータスを返す
-    if (targetTime.isAfter(now) || (isSameDay(targetTime, now) && targetTime.isAfter(now))) {
-      return { status: 'undefined', created_at: targetTime.toISOString() };
-    }
-
-    // 降順（新しい順）でソートそのセグメントで最新のLogを取得し
-    const liftLog = liftLogs
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .find(log => new Date(log.created_at) <= targetTime.toDate());
-
-    return liftLog || { status: 'outside-hours', created_at: targetTime.toISOString() };
-  };
-
-  // セグメントごとのステータスを取得
-  const segments = availableHours.flatMap((hour, _) => 
-    Array.from({ length: SEGMENTS_PER_HOUR }, (_, segmentIndex) => 
-      getStatusForSegment(hour, segmentIndex * (60 / SEGMENTS_PER_HOUR))
-    )
-  );
-
-  // 連続する同じステータスをグループ化
-  const groups = segments.reduce((acc, status, index) => {
-    if (index === 0 || status.status !== segments[index - 1].status) {
-      acc.push({ 
-        ...status, 
-        startIndex: index, 
-        count: 1 
-      });
-    } else {
-      acc[acc.length - 1].count += 1;
-    }
-    return acc;
-  }, [] as Array<{ status: string; created_at: string; startIndex: number; count: number }>);
-
+export function StatusBar({ liftSegments }: StatusBarProps) {
   return (
     <div className="absolute inset-0 flex w-full h-full">
-      {groups.map((group, groupIndex, acc) => {
-        const previousStatus = groupIndex > 0 ? acc[groupIndex - 1].status : null;
-        const nextStatus = groupIndex < acc.length - 1 ? acc[groupIndex + 1].status : null;
-        const leftRadius = group.startIndex === 0 || group.status !== previousStatus ? '8px' : '0';
-        const rightRadius = (group.startIndex + group.count) === totalSegments || group.status !== nextStatus ? '8px' : '0';
+      {liftSegments.map((segment, groupIndex, acc) => {
+        const prevSegment = groupIndex > 0 ? acc[groupIndex - 1] : null;
+        const nextSegment = groupIndex < acc.length - 1 ? acc[groupIndex + 1] : null;
+
+        // セグメントの丸みを計算 
+        const leftRadius = segment.startIndex === 0 || segment.status !== prevSegment?.status ? '8px' : '0';
+        const rightRadius = liftSegments.length === groupIndex + 1 || segment.status !== nextSegment?.status ? '8px' : '0';
         const borderRadius = `${leftRadius} ${rightRadius} ${rightRadius} ${leftRadius}`;
         
         // 幅に応じてテキスト表示を判断（レスポンシブ対応）
-        const shouldShowText = group.count >= 5;
+        const shouldShowText = segment.count >= 3;
 
-        // ツールチップ用の時間範囲を計算
-        const startSegmentIndex = group.startIndex;
-        const endSegmentIndex = group.startIndex + group.count - 1;
-        
-        const startHourIndex = Math.floor(startSegmentIndex / SEGMENTS_PER_HOUR);
-        const startMinuteIndex = startSegmentIndex % SEGMENTS_PER_HOUR;
-        
-        const endHourIndex = Math.floor(endSegmentIndex / SEGMENTS_PER_HOUR);
-        const endMinuteIndex = endSegmentIndex % SEGMENTS_PER_HOUR;
-        
-        const startHour = availableHours[startHourIndex];
-        const startMinute = startMinuteIndex * 5;
-        
-        const endHour = availableHours[endHourIndex];
-        const endMinute = (endMinuteIndex + 1) * 5 - 1; // 終了時間は次のセグメントの開始時間の1分前
-
-        const timeRange = `${formatTime(startHour, startMinute)}〜${formatTime(endHour, endMinute)}`;
-        const tooltipText = `${group.status} (${timeRange})`;
+        // ツールチップ用のテキスト作成
+        const startTime = dayjs.tz(segment.created_at, 'UTC').tz('Asia/Tokyo').format('HH:mm');
+        const endTime = dayjs.tz(nextSegment?.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm');
+        const timeRange = `${startTime}〜${endTime}`;
+        const tooltipText = `${segment.status} (${timeRange})`;
 
         return (
+          // セグメント 
           <div
             key={groupIndex}
-            className={`flex-1 ${getStatusColor(group.status)} flex items-center justify-center cursor-pointer relative group`}
-            style={{ borderRadius, flex: group.count }}
+            className={`${getStatusColor(segment.status)} flex-1 flex items-center justify-center cursor-pointer relative group`}
+            style={{ borderRadius, flex: segment.count }}
           >
+            {/* テキスト表示 */}
             {shouldShowText && (
               <span className="text-center text-xs text-gray-600 truncate px-1">
-                {defaultStatusJa[group.status as keyof typeof defaultStatusJa]}
+                {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
               </span>
             )}
             
