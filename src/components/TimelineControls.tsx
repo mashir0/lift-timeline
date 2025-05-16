@@ -21,10 +21,19 @@ export function TimelineControls({
   onNext,
   onModeChange,
 }: TimelineControlsProps) {
-  const SevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo')
+  const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo')
+  //
+  // デバッグ情報
+  console.log('Debug date info:', {
+    original: '2025-04-18',
+    parsed: today.format(),
+    timezone: today.tz(),
+    utcOffset: today.utcOffset(),
+    formatted: today.format('YYYY-MM-DD') 
+  });
   
   // ボタンの有効/無効を判定
-  const canGoPrevious = currentDate.tz('Asia/Tokyo').isAfter(SevenDaysAgo)
+  const canGoPrevious = currentDate.tz('Asia/Tokyo').isAfter(sevenDaysAgo)
   const canGoNext = currentDate.tz('Asia/Tokyo').isBefore(today.tz('Asia/Tokyo'))
 
   return (

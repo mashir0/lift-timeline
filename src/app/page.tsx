@@ -7,6 +7,7 @@ export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
 
+// const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day')
 const today = dayjs.tz('2025/04/18', 'Asia/Tokyo');
 const todayStr = today.format('YYYY-MM-DD');
 
