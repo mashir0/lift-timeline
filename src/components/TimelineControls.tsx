@@ -22,15 +22,6 @@ export function TimelineControls({
   onModeChange,
 }: TimelineControlsProps) {
   const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo')
-  //
-  // デバッグ情報
-  console.log('Debug date info:', {
-    original: '2025-04-18',
-    parsed: today.format(),
-    timezone: today.tz(),
-    utcOffset: today.utcOffset(),
-    formatted: today.format('YYYY-MM-DD') 
-  });
   
   // ボタンの有効/無効を判定
   const canGoPrevious = currentDate.tz('Asia/Tokyo').isAfter(sevenDaysAgo)
@@ -38,6 +29,13 @@ export function TimelineControls({
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+      <div>
+        <p>original: '2025-04-18'</p>
+        <p>formatted: {today.format('YYYY-MM-DD')}</p>
+        <p>parsed: {today.format()}</p>
+        <p>timezone: {today.tz().toString()}</p>
+        <p>utcOffset: {today.utcOffset()}</p>
+      </div>
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">
