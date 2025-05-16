@@ -8,7 +8,7 @@ export const runtime = 'edge';
 // export const revalidate = 300;
 
 // const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day')
-const today = dayjs.tz('2025/04/18', 'Asia/Tokyo');
+const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
 
 // バッチサイズを定義
