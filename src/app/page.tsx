@@ -10,6 +10,9 @@ export const runtime = 'edge';
 const today = dayjs.tz('2025/04/18', 'Asia/Tokyo');
 const todayStr = today.format('YYYY-MM-DD');
 
+// バッチサイズを定義
+const BATCH_SIZE = 3;
+
 export default async function Home() {
   try {
     const logs: AllResortsLiftLogs = {};
@@ -18,19 +21,32 @@ export default async function Home() {
       getAllLifts()
     ]);
     
-    // リゾートごとにデータを取得
-    await Promise.all(
-      Object.keys(resorts).map(async (resortId) => {
-        const resortLogs = await fetchOneDayLiftLogs(Number(resortId), todayStr);
-        if (Object.keys(resortLogs).length > 0) {
-          // リゾートIDのオブジェクトが存在しない場合は初期化
-          if (!logs[Number(resortId)]) {
-            logs[Number(resortId)] = {};
+    // リゾートIDを配列に変換
+    const resortIds = Object.keys(resorts).map(Number);
+    
+    // バッチ処理
+    for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
+      const batch = resortIds.slice(i, i + BATCH_SIZE);
+      
+      // バッチ内のリゾートのデータを並行して取得
+      await Promise.all(
+        batch.map(async (resortId) => {
+          const resortLogs = await fetchOneDayLiftLogs(resortId, todayStr);
+          if (Object.keys(resortLogs.liftSegments).length > 0) {
+            // リゾートIDのオブジェクトが存在しない場合は初期化
+            if (!logs[resortId]) {
+              logs[resortId] = {};
+            }
+            logs[resortId][todayStr] = resortLogs;
           }
-          logs[Number(resortId)][todayStr] = resortLogs;
-        }
-      })
-    );
+        })
+      );
+      
+      // バッチ間で少し待機（リソース解放のため）
+      if (i + BATCH_SIZE < resortIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
     return <TimelinePage 
       initialResorts={resorts} 

@@ -88,10 +88,10 @@ export async function fetchOneDayLiftLogs(
   const fromDate = dayjs.tz(currentDate, 'Asia/Tokyo').toDate();
   const toDate = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
   
-  // リフト運行ログデータ取得
+  // リフト運行ログデータ取得（全リゾートのデータを一度に取得）
   const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
-    resort_id: resortId,
-    created_at: { gte: fromDate, lt: toDate } // gte:以上 lt:未満
+    // resort_id: resortId,
+    created_at: { gte: fromDate, lt: toDate } 
   });
 
   if (!data) {
@@ -99,7 +99,10 @@ export async function fetchOneDayLiftLogs(
     return { liftSegments: {}, hours: [] };
   }
 
-  const result = data.reduce((acc, log: DBLiftStatusView) => {
+  // 指定されたリゾートのデータのみをフィルタリング
+  const resortData = data.filter(log => log.resort_id === resortId);
+
+  const result = resortData.reduce((acc, log: DBLiftStatusView) => {
     // 時間帯を追加
     acc.hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
 
@@ -111,7 +114,7 @@ export async function fetchOneDayLiftLogs(
     // 最後のログのステータスを取得
     const lastStatus = acc.logsByLiftId[log.lift_id].at(-1);
     
-    // 連続する同じステータㇲは無視
+    // 連続する同じステータスは無視
     if (!(lastStatus && lastStatus.status === log.status)) {
       const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
 

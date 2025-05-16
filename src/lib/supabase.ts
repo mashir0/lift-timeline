@@ -3,7 +3,6 @@ import { DBQuery, DBLiftStatus, YukiyamaResponse } from '@/types';
 
 // 並び順とページネーションのオプション型
 export type FetchOptions = {
-  limit: number;
   order?: Array<{
     column: string;
     ascending: boolean;
@@ -50,7 +49,8 @@ const getSupabaseClient = (): ReturnType<typeof createClient> | null => {
 export const fetchTable = async <T>(
   table: string, 
   query: DBQuery = {}, 
-  options: FetchOptions = {limit: 1000}
+  options: FetchOptions = {},
+  limit: number = 1000,
 ): Promise<T[]> => {
   const supabase = getSupabaseClient();
 
@@ -90,15 +90,13 @@ export const fetchTable = async <T>(
   }
 
   // 取得件数の制限
-  if (options?.limit) {
-    queryBuilder = queryBuilder.limit(options.limit);
-  }
+  queryBuilder = queryBuilder.limit(limit);
 
   // ページネーション ------------------------------------------------------------
   let allData: any[] = [];
   let hasMore = true;
-  let from = (options?.page) ? (options.page - 1) * options.limit : 0; // ページ指定の場合はオフセットを計算
-  let to = from + options.limit - 1;
+  let from = (options?.page) ? (options.page - 1) * limit : 0; // ページ指定の場合はオフセットを計算
+  let to = from + limit - 1;
     
   while (hasMore) {
     // 現在のオフセットから一定数のデータを取得
@@ -111,11 +109,11 @@ export const fetchTable = async <T>(
     
     if (data && data.length > 0) {
       allData = [...allData, ...data];
-      from += options.limit;
-      to = from + options.limit - 1;
+      from += limit;
+      to = from + limit - 1;
       
       // 取得件数がlimitより少ない or ページ指定の場合は終了
-      if (data.length < options.limit || options?.page) {
+      if (data.length < limit || options?.page) {
         hasMore = false;
       }
     } else {
