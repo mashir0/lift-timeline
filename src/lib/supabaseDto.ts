@@ -102,34 +102,47 @@ export async function fetchOneDayLiftLogs(
   // 指定されたリゾートのデータのみをフィルタリング
   const resortData = data.filter(log => log.resort_id === resortId);
 
-  const result = resortData.reduce((acc, log: DBLiftStatusView) => {
+  // liftIdごとにデータをグループ化
+  const logsByLiftId = resortData.reduce((acc, log) => {
+    if (!acc[log.lift_id]) {
+      acc[log.lift_id] = [];
+    }
+    acc[log.lift_id].push(log);
+    return acc;
+  }, {} as { [liftId: number]: DBLiftStatusView[] });
+
+  const result = Object.entries(logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
     // 時間帯を追加
-    acc.hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
+    liftLogs.forEach(log => {
+      acc.hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
+    });
 
-    // リフトIDのグループを初期化（存在しない場合）
-    if (!acc.logsByLiftId[log.lift_id]) {
-      acc.logsByLiftId[log.lift_id] = [];
-    }
-    
-    // 最後のログのステータスを取得
-    const lastStatus = acc.logsByLiftId[log.lift_id].at(-1);
-    
-    // 連続する同じステータスは無視
-    if (!(lastStatus && lastStatus.status === log.status)) {
-      const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+    // リフトIDのグループを初期化
+    acc.logsByLiftId[Number(liftId)] = [];
 
-      // 同じ時間のログがある場合は、1つ前のログを削除
-      if ( roundCreatedAt === lastStatus?.round_created_at ) {
-        acc.logsByLiftId[log.lift_id].pop();
+    // ログを処理
+    liftLogs.forEach((log, index) => {
+      const lastStatus = acc.logsByLiftId[Number(liftId)].at(-1);
+      const isLastLog = index === liftLogs.length - 1;
+      
+      // 連続する同じステータスは無視（ただし最後のログは必ず追加）
+      if (!(lastStatus && lastStatus.status === log.status) || isLastLog) {
+        const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+
+        // 同じ時間のログがある場合は、1つ前のログを削除
+        if (roundCreatedAt === lastStatus?.round_created_at) {
+          acc.logsByLiftId[Number(liftId)].pop();
+        }
+
+        // ログを追加
+        acc.logsByLiftId[Number(liftId)].push({
+          status: log.status,
+          created_at: log.created_at,
+          round_created_at: roundCreatedAt,
+        });
       }
+    });
 
-      // ログを追加
-      acc.logsByLiftId[log.lift_id].push({
-        status: log.status,
-        created_at: log.created_at,
-        round_created_at: roundCreatedAt,
-      });
-    }
     return acc;
   }, { 
     logsByLiftId: {} as OneDayLiftLogs, 
