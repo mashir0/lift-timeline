@@ -2,6 +2,7 @@ import { getAllResorts, getAllLifts, fetchOneDayLiftLogs } from '@/lib/supabaseD
 import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs } from '@/types';
 import dayjs from '@/util/dayjs';
+import { redirect } from 'next/navigation';
 
 export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
@@ -13,7 +14,20 @@ const todayStr = today.format('YYYY-MM-DD');
 // バッチサイズを定義
 const BATCH_SIZE = 3;
 
-export default async function Home() {
+export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
+  // 日付パラメータがない場合は本日の日付にリダイレクト
+  if (!searchParams.date) {
+    redirect(`/?date=${todayStr}`);
+  }
+
+  // 日付のバリデーション
+  const date = dayjs.tz(searchParams.date,'UTC').tz('Asia/Tokyo');
+  if (!date.isValid()) {
+    redirect(`/?date=${todayStr}`);
+  }
+
+  const dateStr = date.format('YYYY-MM-DD');
+
   try {
     const logs: AllResortsLiftLogs = {};
     const [resorts, lifts] = await Promise.all([
@@ -31,13 +45,13 @@ export default async function Home() {
       // バッチ内のリゾートのデータを並行して取得
       await Promise.all(
         batch.map(async (resortId) => {
-          const resortLogs = await fetchOneDayLiftLogs(resortId, todayStr);
+          const resortLogs = await fetchOneDayLiftLogs(resortId, dateStr);
           if (Object.keys(resortLogs.liftSegments).length > 0) {
             // リゾートIDのオブジェクトが存在しない場合は初期化
             if (!logs[resortId]) {
               logs[resortId] = {};
             }
-            logs[resortId][todayStr] = resortLogs;
+            logs[resortId][dateStr] = resortLogs;
           }
         })
       );
@@ -53,6 +67,7 @@ export default async function Home() {
       initialLifts={lifts} 
       initialLogs={logs} 
       todayString={todayStr}
+      isLoading={false}
     />;
   } catch (error) {
     console.error('Error fetching data:', error);

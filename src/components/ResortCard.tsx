@@ -27,7 +27,12 @@ export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
     setTooltip(null);
   }, []);
 
-  const availableHours = liftLogs.hours; 
+  // liftLogsが存在しない場合は何も表示しない
+  if (!liftLogs || !liftLogs.hours) {
+    return null;
+  }
+
+  const availableHours = liftLogs.hours;
 
   return (
     <>
