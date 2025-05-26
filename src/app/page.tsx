@@ -62,16 +62,26 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
       }
     }
     
-    return <TimelinePage 
-      initialResorts={resorts} 
-      initialLifts={lifts} 
-      initialLogs={logs} 
-      todayString={todayStr}
-      isLoading={false}
-    />;
+    return (
+      <TimelinePage 
+        initialResorts={resorts} 
+        initialLifts={lifts} 
+        initialLogs={logs} 
+        todayString={todayStr}
+        isLoading={false}
+      />
+    );
   } catch (error) {
     console.error('Error fetching data:', error);
     // エラー時のフォールバックUIを表示
-    return <div>データの取得に失敗しました。エラー: {error instanceof Error ? error.message : String(error)}</div>;
+    return (
+      <TimelinePage 
+        initialResorts={{}}
+        initialLifts={{}}
+        initialLogs={{}}
+        todayString={todayStr}
+        isLoading={false}
+      />
+    );
   }
 }

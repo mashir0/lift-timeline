@@ -2,6 +2,7 @@ import { fetchTable, insertTable } from './supabase';
 import { DBLiftStatusView, OneDayLiftLogs, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto, liftStatus, LiftSegment, LiftSegmentsByLiftId, OperationStatus } from '@/types';
 import dayjs from '@/util/dayjs';
 import { SEGMENTS_PER_HOUR, ONE_SEGMENT_MINUTES } from './constants';
+import PerformanceMonitor from '@/util/performance';
 
 /* ------------------------------------------------------------
  * スキー場一覧の取得
@@ -85,6 +86,8 @@ export async function fetchOneDayLiftLogs(
   resortId: number, 
   currentDate: string
 ): Promise<LiftSegmentsByLiftId> {
+  PerformanceMonitor.start('fetch-one-day-lift-logs');
+  
   const fromDate = dayjs.tz(currentDate, 'Asia/Tokyo').toDate();
   const toDate = dayjs.tz(currentDate, 'Asia/Tokyo').add(1, 'day').toDate();
   
@@ -99,65 +102,57 @@ export async function fetchOneDayLiftLogs(
     return { liftSegments: {}, hours: [] };
   }
 
-  // 指定されたリゾートのデータのみをフィルタリング
+  // 1. 最初のフィルタリングで必要なデータのみを抽出
   const resortData = data.filter(log => log.resort_id === resortId);
-
-  // liftIdごとにデータをグループ化
+  
+  // 2. 時間帯の抽出を最適化（Setを使用）
+  const hours = new Set<number>();
+  
+  // 3. データ構造を一度のループで構築
   const logsByLiftId = resortData.reduce((acc, log) => {
+    // 時間帯を追加
+    hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
+    
+    // リフトIDのグループを初期化（必要な場合のみ）
     if (!acc[log.lift_id]) {
       acc[log.lift_id] = [];
     }
-    acc[log.lift_id].push(log);
+    
+    // 重複チェックを最適化
+    const lastStatus = acc[log.lift_id].at(-1);
+    const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+    
+    // 同じ時間のログがある場合は、1つ前のログを削除
+    if (lastStatus?.round_created_at === roundCreatedAt) {
+      acc[log.lift_id].pop();
+    }
+    
+    // 連続する同じステータスは無視（最後のログは必ず追加）
+    if (!lastStatus || lastStatus.status !== log.status || log === resortData[resortData.length - 1]) {
+      acc[log.lift_id].push({
+        status: log.status,
+        created_at: log.created_at,
+        round_created_at: roundCreatedAt,
+      });
+    }
+    
     return acc;
-  }, {} as { [liftId: number]: DBLiftStatusView[] });
+  }, {} as { [liftId: number]: liftStatus[] });
 
-  const result = Object.entries(logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
-    // 時間帯を追加
-    liftLogs.forEach(log => {
-      acc.hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
-    });
-
-    // リフトIDのグループを初期化
-    acc.logsByLiftId[Number(liftId)] = [];
-
-    // ログを処理
-    liftLogs.forEach((log, index) => {
-      const lastStatus = acc.logsByLiftId[Number(liftId)].at(-1);
-      const isLastLog = index === liftLogs.length - 1;
-      
-      // 連続する同じステータスは無視（ただし最後のログは必ず追加）
-      if (!(lastStatus && lastStatus.status === log.status) || isLastLog) {
-        const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
-
-        // 同じ時間のログがある場合は、1つ前のログを削除
-        if (roundCreatedAt === lastStatus?.round_created_at) {
-          acc.logsByLiftId[Number(liftId)].pop();
-        }
-
-        // ログを追加
-        acc.logsByLiftId[Number(liftId)].push({
-          status: log.status,
-          created_at: log.created_at,
-          round_created_at: roundCreatedAt,
-        });
-      }
-    });
-
-    return acc;
-  }, { 
-    logsByLiftId: {} as OneDayLiftLogs, 
-    hours: new Set<number>(),
-  });
-
-  // 時間帯を配列に変換してソート
-  const hours = Array.from(result.hours).sort((a, b) => a - b);
-  
-  // 各リフトのセグメントとグループを計算
-  const liftSegments = Object.entries(result.logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
-    acc[Number(liftId)] = getSegmentsAndGroups(liftLogs, hours);
+  // 4. セグメントとグループの計算を最適化
+  const liftSegments = Object.entries(logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
+    acc[Number(liftId)] = getSegmentsAndGroups(liftLogs, Array.from(hours).sort((a, b) => a - b));
     return acc;
   }, {} as { [liftId: number]: LiftSegment[] });
-  return { liftSegments, hours };
+
+  const metrics = PerformanceMonitor.end('fetch-one-day-lift-logs');
+  console.log('fetchOneDayLiftLogs パフォーマンス:', {
+    duration: metrics.duration,
+    dataSize: data.length,
+    resortDataSize: resortData.length
+  });
+
+  return { liftSegments, hours: Array.from(hours).sort((a, b) => a - b) };
 }
 
 /* ------------------------------------------------------------

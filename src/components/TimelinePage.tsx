@@ -34,10 +34,7 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
   // initialLogsが変更されたらliftLogsを更新
   useEffect(() => {
     setLiftLogs(initialLogs);
-    // データが存在する場合のみローディングを解除
-    if (Object.keys(initialLogs).length > 0) {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
   }, [initialLogs]);
 
   const handleRefresh = () => {
@@ -89,8 +86,7 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
           onModeChange={setMode}
         />
         
-        {!liftLogs || Object.keys(liftLogs).length === 0 ? (
-
+        {isLoading || !liftLogs || Object.keys(liftLogs).length === 0 ? (
           <div className="flex justify-center items-center min-h-[400px]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
