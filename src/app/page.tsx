@@ -12,7 +12,7 @@ const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
 
 // バッチサイズを定義
-const BATCH_SIZE = 3;
+const BATCH_SIZE = 2; 
 
 export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
   // 日付パラメータがない場合は本日の日付にリダイレクト
