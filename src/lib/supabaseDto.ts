@@ -154,7 +154,7 @@ export async function fetchOneDayLiftLogs(
   
   // リフト運行ログデータ取得（全リゾートのデータを一度に取得）
   const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
-    resort_id: resortId,
+    // resort_id: resortId,
     created_at: { gte: fromDate, lt: toDate } 
   });
 
@@ -169,7 +169,7 @@ export async function fetchOneDayLiftLogs(
   
   // データを一度のループでresort -> lift -> logs構造に整理
   data.filter(log => log.resort_id === resortId).forEach(log => {
-    // if (log.resort_id === resortId) {
+    if (log.resort_id === resortId) {
       // 時間帯を追加
       hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
       
@@ -178,7 +178,7 @@ export async function fetchOneDayLiftLogs(
         resortLiftLogs[log.lift_id] = [];
       }
       resortLiftLogs[log.lift_id].push(log);
-    // }
+    }
   });
   
   // 2. 各リフトのログを時間順にソートし、重複除去と連続ステータス処理
