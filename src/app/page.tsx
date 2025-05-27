@@ -3,6 +3,7 @@ import { TimelinePage } from '@/components/TimelinePage';
 import type { AllResortsLiftLogs } from '@/types';
 import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
+import PerformanceMonitor from '@/util/performance';
 
 export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
@@ -11,8 +12,8 @@ export const runtime = 'edge';
 const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
 
-// バッチサイズを定義
-const BATCH_SIZE = 2; 
+// バッチサイズを定義（CPUタイムアウト対策で1に変更）
+const BATCH_SIZE = 2;
 
 export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
   // 日付パラメータがない場合は本日の日付にリダイレクト
@@ -29,6 +30,8 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
   const dateStr = date.format('YYYY-MM-DD');
 
   try {
+    PerformanceMonitor.start('page-load-total');
+    
     const logs: AllResortsLiftLogs = {};
     const [resorts, lifts] = await Promise.all([
       getAllResorts(),
@@ -38,6 +41,8 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     // リゾートIDを配列に変換
     const resortIds = Object.keys(resorts).map(Number);
     
+    console.log(`Processing ${resortIds.length} resorts for date ${dateStr}`);
+    
     // バッチ処理
     for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
       const batch = resortIds.slice(i, i + BATCH_SIZE);
@@ -45,22 +50,29 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
       // バッチ内のリゾートのデータを並行して取得
       await Promise.all(
         batch.map(async (resortId) => {
-          const resortLogs = await fetchOneDayLiftLogs(resortId, dateStr);
-          if (Object.keys(resortLogs.liftSegments).length > 0) {
-            // リゾートIDのオブジェクトが存在しない場合は初期化
-            if (!logs[resortId]) {
-              logs[resortId] = {};
+          try {
+            const resortLogs = await fetchOneDayLiftLogs(resortId, dateStr);
+            if (Object.keys(resortLogs.liftSegments).length > 0) {
+              // リゾートIDのオブジェクトが存在しない場合は初期化
+              if (!logs[resortId]) {
+                logs[resortId] = {};
+              }
+              logs[resortId][dateStr] = resortLogs;
             }
-            logs[resortId][dateStr] = resortLogs;
+          } catch (error) {
+            // 個別のエラーは無視して処理を継続
+            console.error(`Error fetching logs for resort ${resortId}:`, error);
           }
         })
       );
-      
-      // バッチ間で少し待機（リソース解放のため）
-      if (i + BATCH_SIZE < resortIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
+    
+    const totalMetrics = PerformanceMonitor.end('page-load-total');
+    console.log('Page load パフォーマンス:', {
+      totalDuration: totalMetrics.duration,
+      resortsProcessed: Object.keys(logs).length,
+      dateStr: dateStr
+    });
     
     return (
       <TimelinePage 

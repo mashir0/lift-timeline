@@ -45,40 +45,101 @@ const roundMinutes = (dayjs: dayjs.Dayjs): dayjs.Dayjs => {
   return dayjs.minute(minutes).startOf('minute');
 }
 
-// リフトのログからstatus barのどの位置にstatusを表示するかを計算する
+// リフトのログからstatus barのどの位置にstatusを表示するかを計算する（改善版）
 const getSegmentsAndGroups = (liftLogs: liftStatus[], availableHours: number[]): LiftSegment[] => {
+  if (liftLogs.length === 0 || availableHours.length === 0) {
+    return [];
+  }
+
   const now = dayjs.tz(new Date(), 'UTC');
-  const segments = availableHours.flatMap(hour => 
-    Array.from({ length: SEGMENTS_PER_HOUR }, (_, segmentIndex) => {
-      const targetTime = dayjs.tz(liftLogs[0].created_at, 'UTC').tz('Asia/Tokyo')
-        .hour(hour)
-        .minute(segmentIndex * ONE_SEGMENT_MINUTES)
-        .startOf('minute')
-        .utc();
-        
-      const outside: liftStatus = {
-        status: 'outside-hours' as OperationStatus, 
-        created_at: targetTime.toISOString(), 
-        round_created_at: targetTime.toISOString()
-      }
-
-      if (targetTime.isAfter(now)) {
-        return outside;
-      }
-
-      // targetTimeより後ろの時間の最初のlogを取得
-      return liftLogs.find( log => dayjs.tz(log.created_at, 'UTC').isAfter(targetTime)) || outside;
-    })
+  const sortedHours = availableHours.sort((a, b) => a - b);
+  
+  // 表示期間の開始時刻と終了時刻を計算
+  const baseDate = dayjs.tz(liftLogs[0].round_created_at, 'UTC').tz('Asia/Tokyo');
+  const startTime = baseDate.hour(sortedHours[0]).minute(0).startOf('minute').utc();
+  const endTime = baseDate.hour(sortedHours[sortedHours.length - 1] + 1).minute(0).startOf('minute').utc();
+  
+  // 総セグメント数を計算
+  const totalSegments = sortedHours.length * SEGMENTS_PER_HOUR;
+  
+  const result: LiftSegment[] = [];
+  
+  // ログを時間順にソート（round_created_atを使用）
+  const sortedLogs = [...liftLogs].sort((a, b) => 
+    dayjs.tz(a.round_created_at, 'UTC').valueOf() - dayjs.tz(b.round_created_at, 'UTC').valueOf()
   );
-
-  return segments.reduce((acc, status, index) => {
-    if (index === 0 || status.status !== segments[index - 1].status) {
-      acc.push({ ...status, startIndex: index, count: 1 });
-    } else {
-      acc[acc.length - 1].count++;
+  
+  for (let i = 0; i < sortedLogs.length; i++) {
+    const currentLog = sortedLogs[i];
+    const currentTime = dayjs.tz(currentLog.round_created_at, 'UTC');
+    
+    // 次のログの時刻（なければ終了時刻）
+    const nextTime = i < sortedLogs.length - 1 
+      ? dayjs.tz(sortedLogs[i + 1].round_created_at, 'UTC')
+      : endTime;
+    
+    // 現在時刻より未来の場合はスキップ
+    if (currentTime.isAfter(now)) {
+      break;
     }
-    return acc;
-  }, [] as LiftSegment[]);
+    
+    // ステータスの継続時間を分単位で計算
+    const durationMinutes = Math.min(
+      nextTime.diff(currentTime, 'minute'),
+      endTime.diff(currentTime, 'minute')
+    );
+    
+    // セグメント数に変換（1セグメント = ONE_SEGMENT_MINUTES分）
+    const segmentCount = Math.max(1, Math.ceil(durationMinutes / ONE_SEGMENT_MINUTES));
+    
+    // 現在のセグメントインデックスを計算
+    const timeFromStart = currentTime.diff(startTime, 'minute');
+    const segmentIndex = Math.floor(timeFromStart / ONE_SEGMENT_MINUTES);
+    
+    // 範囲内のセグメントのみ追加
+    if (segmentIndex >= 0 && segmentIndex < totalSegments) {
+      result.push({
+        status: currentLog.status,
+        created_at: currentLog.created_at,
+        round_created_at: currentLog.round_created_at,
+        startIndex: segmentIndex,
+        count: Math.min(segmentCount, totalSegments - segmentIndex)
+      });
+    }
+  }
+  
+  // 時間外セグメントを埋める
+  if (result.length === 0 || result[0].startIndex > 0) {
+    // 最初のセグメントが時間外の場合
+    const outsideStatus: LiftSegment = {
+      status: 'outside-hours' as OperationStatus,
+      created_at: startTime.toISOString(),
+      round_created_at: startTime.toISOString(),
+      startIndex: 0,
+      count: result.length > 0 ? result[0].startIndex : totalSegments
+    };
+    result.unshift(outsideStatus);
+  }
+  
+  // 現在時刻以降を時間外で埋める
+  const lastSegment = result[result.length - 1];
+  const lastEndIndex = lastSegment.startIndex + lastSegment.count;
+  if (lastEndIndex < totalSegments) {
+    const nowSegmentIndex = Math.floor(now.diff(startTime, 'minute') / ONE_SEGMENT_MINUTES);
+    const outsideStartIndex = Math.max(lastEndIndex, nowSegmentIndex);
+    
+    if (outsideStartIndex < totalSegments) {
+      result.push({
+        status: 'outside-hours' as OperationStatus,
+        created_at: now.toISOString(),
+        round_created_at: now.toISOString(),
+        startIndex: outsideStartIndex,
+        count: totalSegments - outsideStartIndex
+      });
+    }
+  }
+  
+  return result;
 };
 
 // LiftStatus一覧 resort_id: {yyyy-mm-dd: {lift_id: {status, created_at}}}
@@ -93,7 +154,7 @@ export async function fetchOneDayLiftLogs(
   
   // リフト運行ログデータ取得（全リゾートのデータを一度に取得）
   const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
-    // resort_id: resortId,
+    resort_id: resortId,
     created_at: { gte: fromDate, lt: toDate } 
   });
 
@@ -102,39 +163,53 @@ export async function fetchOneDayLiftLogs(
     return { liftSegments: {}, hours: [] };
   }
 
-  // 1. 最初のフィルタリングで必要なデータのみを抽出
-  const resortData = data.filter(log => log.resort_id === resortId);
-  
-  // 2. 時間帯の抽出を最適化（Setを使用）
+  // 1. 最初のフィルタリングで必要なデータのみを抽出し、resort -> lift -> logs構造で整理
+  const resortLiftLogs: { [liftId: number]: DBLiftStatusView[] } = {};
   const hours = new Set<number>();
   
-  // 3. データ構造を一度のループで構築
-  const logsByLiftId = resortData.reduce((acc, log) => {
-    // 時間帯を追加
-    hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
+  // データを一度のループでresort -> lift -> logs構造に整理
+  data.filter(log => log.resort_id === resortId).forEach(log => {
+    // if (log.resort_id === resortId) {
+      // 時間帯を追加
+      hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
+      
+      // リフトIDのグループを初期化（必要な場合のみ）
+      if (!resortLiftLogs[log.lift_id]) {
+        resortLiftLogs[log.lift_id] = [];
+      }
+      resortLiftLogs[log.lift_id].push(log);
+    // }
+  });
+  
+  // 2. 各リフトのログを時間順にソートし、重複除去と連続ステータス処理
+  const logsByLiftId = Object.entries(resortLiftLogs).reduce((acc, [liftId, liftLogs]) => {
+    // 時間順にソート
+    const sortedLogs = liftLogs.sort((a, b) => 
+      dayjs.tz(a.created_at, 'UTC').valueOf() - dayjs.tz(b.created_at, 'UTC').valueOf()
+    );
     
-    // リフトIDのグループを初期化（必要な場合のみ）
-    if (!acc[log.lift_id]) {
-      acc[log.lift_id] = [];
-    }
-    
-    // 重複チェックを最適化
-    const lastStatus = acc[log.lift_id].at(-1);
-    const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
-    
-    // 同じ時間のログがある場合は、1つ前のログを削除
-    if (lastStatus?.round_created_at === roundCreatedAt) {
-      acc[log.lift_id].pop();
-    }
-    
-    // 連続する同じステータスは無視（最後のログは必ず追加）
-    if (!lastStatus || lastStatus.status !== log.status || log === resortData[resortData.length - 1]) {
-      acc[log.lift_id].push({
-        status: log.status,
-        created_at: log.created_at,
-        round_created_at: roundCreatedAt,
-      });
-    }
+    acc[Number(liftId)] = sortedLogs.reduce((liftAcc, log, index) => {
+      let lastStatus = liftAcc.at(-1);
+      const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+      
+      // 同じ時間のログがある場合は、1つ前のログを削除
+      if (lastStatus?.round_created_at === roundCreatedAt) {
+        liftAcc.pop();
+        lastStatus = liftAcc.at(-1);
+      }
+      
+      // 連続する同じステータスは無視（最後のログは必ず追加）
+      const isLastLogForThisLift = index === sortedLogs.length - 1;
+      if (!lastStatus || lastStatus.status !== log.status || isLastLogForThisLift) {
+        liftAcc.push({
+          status: log.status,
+          created_at: log.created_at,
+          round_created_at: roundCreatedAt,
+        });
+      }
+      
+      return liftAcc;
+    }, [] as liftStatus[]);
     
     return acc;
   }, {} as { [liftId: number]: liftStatus[] });
@@ -149,7 +224,7 @@ export async function fetchOneDayLiftLogs(
   console.log('fetchOneDayLiftLogs パフォーマンス:', {
     duration: metrics.duration,
     dataSize: data.length,
-    resortDataSize: resortData.length
+    resortDataSize: data.length
   });
 
   return { liftSegments, hours: Array.from(hours).sort((a, b) => a - b) };

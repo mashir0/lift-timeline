@@ -19,12 +19,6 @@ type TimelinePageProps = {
 };
 
 export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayString, isLoading: initialIsLoading = false }: TimelinePageProps) {
-  console.log('initialResorts', initialResorts);
-  console.log('initialLifts', initialLifts);
-  console.log('initialLogs', initialLogs);
-  console.log('todayString', todayString);
-  console.log('initialIsLoading', initialIsLoading);
-
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
