@@ -6,5 +6,13 @@ pages_build_output_dir = ".vercel/output/static"
 
 # Cloudflare Workers用の設定
 [vars]
-ENVIRONMENT = "production"
+ENVIRONMENT = "development"
 NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
+
+[env.production.vars]
+TEST = "production"
+ENVIRONMENT = "production"
+
+[env.preview.vars]
+TEST = "preview"
+ENVIRONMENT = "production"

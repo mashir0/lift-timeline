@@ -13,6 +13,9 @@ export const runtime = 'edge';
 const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
 
+// バッチサイズを定義（同時実行数を制限）
+const BATCH_SIZE = 2;
+
 export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
   // 日付パラメータがない場合は本日の日付にリダイレクト
   if (!searchParams.date) {
@@ -37,40 +40,52 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     ]);
     
     // 2. リゾートごとにリフトログデータを取得
+    const resortIds = Object.keys(resorts);
+    const logs: AllResortsLiftLogs = {};
+    
+    // 現在のリクエストのヘッダーからホスト情報を取得
     const headersList = headers();
     const host = headersList.get('host') || 'localhost:3000';
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    console.log('env', process.env.ENVIRONMENT);
+    const protocol = process.env.ENVIRONMENT === 'development' ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     
-    const resortIds = Object.keys(resorts);
-    const liftLogsPromises = resortIds.map(async (resortId) => {
-      try {
-        const response = await fetch(
-          `${protocol}://${host}/api/lift-logs/${resortId}?date=${dateStr}`,
-          { cache: 'no-store' }
-        );
-        if (!response.ok) {
-          console.error(`Failed to fetch logs for resort ${resortId}`);
+    // バッチ処理でリクエストを制限
+    for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
+      const batch = resortIds.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (resortId) => {
+        try {
+          const response = await fetch( `${baseUrl}/api/lift-logs/${resortId}?date=${dateStr}`, { 
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (!response.ok) {
+            console.error(`Failed to fetch logs for resort ${resortId}`);
+            return null;
+          }
+          const data = await response.json();
+          return { resortId, data };
+        } catch (error) {
+          console.error(`Error fetching logs for resort ${resortId}:`, error);
           return null;
         }
-        const data = await response.json();
-        return { resortId, data };
-      } catch (error) {
-        console.error(`Error fetching logs for resort ${resortId}:`, error);
-        return null;
-      }
-    });
-    
-    const liftLogsResults = await Promise.all(liftLogsPromises);
-    
-    // 3. 結果を整理
-    const logs: AllResortsLiftLogs = {};
-    liftLogsResults.forEach(result => {
-      if (result && Object.keys(result.data.liftSegments).length > 0) {
-        logs[Number(result.resortId)] = {
-          [dateStr]: result.data
-        };
-      }
-    });
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      
+      // バッチの結果を処理
+      batchResults.forEach(result => {
+        if (result && Object.keys(result.data.liftSegments).length > 0) {
+          logs[Number(result.resortId)] = {
+            [dateStr]: result.data
+          };
+        }
+      });
+    }
     
     console.log(`Processed ${Object.keys(logs).length} resorts for date ${dateStr}`);
     

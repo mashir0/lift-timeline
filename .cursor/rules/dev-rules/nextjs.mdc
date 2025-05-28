@@ -60,6 +60,7 @@ CloudFlare Pagesで使用するため、'use client'ディレクティブは基�
 - `app/api`ディレクトリ内に API エンドポイントを作成
 - HTTP メソッドごとに適切なハンドラーを実装:
 - GET の API はなるべく作らないでください。データフェッチはサーバーコンポーネントでお願いします。
+- ただし、既にAPIを使用した実装の場合は、勝手に変更しないでください。
 - API の仕様は POST/PATCH/PUT/DELETE のみに絞ってください。
 
 ```typescript
