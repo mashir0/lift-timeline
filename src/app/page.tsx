@@ -1,9 +1,10 @@
-import { getAllResorts, getAllLifts, fetchOneDayLiftLogs } from '@/lib/supabaseDto';
+import { getAllResorts, getAllLifts } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
-import type { AllResortsLiftLogs } from '@/types';
+import type { AllResortsLiftLogs, LiftSegmentsByLiftId } from '@/types';
 import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
 import PerformanceMonitor from '@/util/performance';
+import { headers } from 'next/headers';
 
 export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
@@ -11,9 +12,6 @@ export const runtime = 'edge';
 
 const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
-
-// バッチサイズを定義（CPUタイムアウト対策で1に変更）
-const BATCH_SIZE = 2;
 
 export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
   // 日付パラメータがない場合は本日の日付にリダイレクト
@@ -32,40 +30,49 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
   try {
     PerformanceMonitor.start('page-load-total');
     
-    const logs: AllResortsLiftLogs = {};
+    // 1. 基本情報の取得
     const [resorts, lifts] = await Promise.all([
       getAllResorts(),
       getAllLifts()
     ]);
     
-    // リゾートIDを配列に変換
-    const resortIds = Object.keys(resorts).map(Number);
+    // 2. リゾートごとにリフトログデータを取得
+    const headersList = headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
     
-    console.log(`Processing ${resortIds.length} resorts for date ${dateStr}`);
+    const resortIds = Object.keys(resorts);
+    const liftLogsPromises = resortIds.map(async (resortId) => {
+      try {
+        const response = await fetch(
+          `${protocol}://${host}/api/lift-logs/${resortId}?date=${dateStr}`,
+          { cache: 'no-store' }
+        );
+        if (!response.ok) {
+          console.error(`Failed to fetch logs for resort ${resortId}`);
+          return null;
+        }
+        const data = await response.json();
+        return { resortId, data };
+      } catch (error) {
+        console.error(`Error fetching logs for resort ${resortId}:`, error);
+        return null;
+      }
+    });
     
-    // バッチ処理
-    for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
-      const batch = resortIds.slice(i, i + BATCH_SIZE);
-      
-      // バッチ内のリゾートのデータを並行して取得
-      await Promise.all(
-        batch.map(async (resortId) => {
-          try {
-            const resortLogs = await fetchOneDayLiftLogs(resortId, dateStr);
-            if (Object.keys(resortLogs.liftSegments).length > 0) {
-              // リゾートIDのオブジェクトが存在しない場合は初期化
-              if (!logs[resortId]) {
-                logs[resortId] = {};
-              }
-              logs[resortId][dateStr] = resortLogs;
-            }
-          } catch (error) {
-            // 個別のエラーは無視して処理を継続
-            console.error(`Error fetching logs for resort ${resortId}:`, error);
-          }
-        })
-      );
-    }
+    const liftLogsResults = await Promise.all(liftLogsPromises);
+    
+    // 3. 結果を整理
+    const logs: AllResortsLiftLogs = {};
+    liftLogsResults.forEach(result => {
+      if (result && Object.keys(result.data.liftSegments).length > 0) {
+        logs[Number(result.resortId)] = {
+          [dateStr]: result.data
+        };
+      }
+    });
+    
+    console.log(`Processed ${Object.keys(logs).length} resorts for date ${dateStr}`);
     
     const totalMetrics = PerformanceMonitor.end('page-load-total');
     console.log('Page load パフォーマンス:', {
