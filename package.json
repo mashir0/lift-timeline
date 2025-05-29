@@ -12,9 +12,11 @@
     "deploy": "npm run cf:build && wrangler pages deploy"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.3",
     "@supabase/supabase-js": "^2.49.1",
     "date-fns": "^2.30.0",
     "dayjs": "^1.11.13",
+    "hono": "^4.7.10",
     "lucide-react": "^0.294.0",
     "next": "^14.1.0",
     "react": "^18.2.0",

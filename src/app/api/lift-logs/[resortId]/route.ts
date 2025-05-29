@@ -1,29 +1,29 @@
 import { fetchOneDayLiftLogs } from '@/lib/supabaseDto';
-import { NextResponse } from 'next/server';
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
 
-export const runtime = 'edge';
+const app = new Hono();
 
-export async function GET(
-  request: Request,
-  { params }: { params: { resortId: string } }
-) {
-  const { searchParams } = new URL(request.url);
-  const date = searchParams.get('date');
+app.get('/api/lift-logs/:resortId', async (c) => {
+  const resortId = parseInt(c.req.param('resortId'));
+  const date = c.req.query('date');
 
   if (!date) {
-    return NextResponse.json({ error: 'Date parameter is required' }, { status: 400 });
+    return c.json({ error: 'Date parameter is required' }, 400);
+  }
+
+  if (isNaN(resortId)) {
+    return c.json({ error: 'Invalid resort ID' }, 400);
   }
 
   try {
-    const resortId = parseInt(params.resortId);
-    if (isNaN(resortId)) {
-      return NextResponse.json({ error: 'Invalid resort ID' }, { status: 400 });
-    }
-
     const liftLogs = await fetchOneDayLiftLogs(resortId, date);
-    return NextResponse.json(liftLogs);
+    return c.json(liftLogs);
   } catch (error) {
     console.error('Error fetching lift logs:', error);
-    return NextResponse.json({ error: 'Failed to fetch lift logs' }, { status: 500 });
+    return c.json({ error: 'Failed to fetch lift logs' }, 500);
   }
-} 
+});
+
+export const GET = handle(app);
+export const runtime = 'edge'; 

@@ -154,7 +154,7 @@ export async function fetchOneDayLiftLogs(
   
   // リフト運行ログデータ取得（全リゾートのデータを一度に取得）
   const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
-    // resort_id: resortId,
+    resort_id: resortId,
     created_at: { gte: fromDate, lt: toDate } 
   });
 
@@ -163,62 +163,64 @@ export async function fetchOneDayLiftLogs(
     return { liftSegments: {}, hours: [] };
   }
 
-  // 1. 最初のフィルタリングで必要なデータのみを抽出し、resort -> lift -> logs構造で整理
-  const resortLiftLogs: { [liftId: number]: DBLiftStatusView[] } = {};
+  // 1. メモリ効率を改善：Mapを使用してデータを整理
+  const resortLiftLogs = new Map<number, DBLiftStatusView[]>();
   const hours = new Set<number>();
   
-  // データを一度のループでresort -> lift -> logs構造に整理
-  data.filter(log => log.resort_id === resortId).forEach(log => {
-    if (log.resort_id === resortId) {
-      // 時間帯を追加
-      hours.add(dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour());
-      
-      // リフトIDのグループを初期化（必要な場合のみ）
-      if (!resortLiftLogs[log.lift_id]) {
-        resortLiftLogs[log.lift_id] = [];
-      }
-      resortLiftLogs[log.lift_id].push(log);
-    }
-  });
+  // データを一度のループで整理（filterを削除）
+  for (const log of data) {
+    const hour = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour();
+    hours.add(hour);
+    
+    const liftLogs = resortLiftLogs.get(log.lift_id) || [];
+    liftLogs.push(log);
+    resortLiftLogs.set(log.lift_id, liftLogs);
+  }
   
   // 2. 各リフトのログを時間順にソートし、重複除去と連続ステータス処理
-  const logsByLiftId = Object.entries(resortLiftLogs).reduce((acc, [liftId, liftLogs]) => {
+  const logsByLiftId = new Map<number, liftStatus[]>();
+  
+  for (const [liftId, liftLogs] of resortLiftLogs) {
     // 時間順にソート
-    const sortedLogs = liftLogs.sort((a, b) => 
+    liftLogs.sort((a, b) => 
       dayjs.tz(a.created_at, 'UTC').valueOf() - dayjs.tz(b.created_at, 'UTC').valueOf()
     );
     
-    acc[Number(liftId)] = sortedLogs.reduce((liftAcc, log, index) => {
-      let lastStatus = liftAcc.at(-1);
+    const processedLogs: liftStatus[] = [];
+    let lastStatus: liftStatus | undefined;
+    
+    for (let i = 0; i < liftLogs.length; i++) {
+      const log = liftLogs[i];
       const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
       
       // 同じ時間のログがある場合は、1つ前のログを削除
       if (lastStatus?.round_created_at === roundCreatedAt) {
-        liftAcc.pop();
-        lastStatus = liftAcc.at(-1);
+        processedLogs.pop();
+        lastStatus = processedLogs.at(-1);
       }
       
       // 連続する同じステータスは無視（最後のログは必ず追加）
-      const isLastLogForThisLift = index === sortedLogs.length - 1;
+      const isLastLogForThisLift = i === liftLogs.length - 1;
       if (!lastStatus || lastStatus.status !== log.status || isLastLogForThisLift) {
-        liftAcc.push({
+        const newStatus = {
           status: log.status,
           created_at: log.created_at,
           round_created_at: roundCreatedAt,
-        });
+        };
+        processedLogs.push(newStatus);
+        lastStatus = newStatus;
       }
-      
-      return liftAcc;
-    }, [] as liftStatus[]);
-    
-    return acc;
-  }, {} as { [liftId: number]: liftStatus[] });
+    }
+    logsByLiftId.set(liftId, processedLogs);
+  }
 
-  // 4. セグメントとグループの計算を最適化
-  const liftSegments = Object.entries(logsByLiftId).reduce((acc, [liftId, liftLogs]) => {
-    acc[Number(liftId)] = getSegmentsAndGroups(liftLogs, Array.from(hours).sort((a, b) => a - b));
-    return acc;
-  }, {} as { [liftId: number]: LiftSegment[] });
+  // 3. セグメントとグループの計算を最適化
+  const liftSegments: { [liftId: number]: LiftSegment[] } = {};
+  const sortedHours = Array.from(hours).sort((a, b) => a - b);
+  
+  for (const [liftId, liftLogs] of logsByLiftId) {
+    liftSegments[liftId] = getSegmentsAndGroups(liftLogs, sortedHours);
+  }
 
   const metrics = PerformanceMonitor.end('fetch-one-day-lift-logs');
   console.log('fetchOneDayLiftLogs パフォーマンス:', {
@@ -227,7 +229,7 @@ export async function fetchOneDayLiftLogs(
     resortDataSize: data.length
   });
 
-  return { liftSegments, hours: Array.from(hours).sort((a, b) => a - b) };
+  return { liftSegments, hours: sortedHours };
 }
 
 /* ------------------------------------------------------------
