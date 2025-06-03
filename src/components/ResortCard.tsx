@@ -1,24 +1,20 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Map } from 'lucide-react';
-import type { ResortsDto, LiftsDto, OneDayLiftLogs } from '@/types';
+import type { ResortsDto, LiftsDto, LiftSegmentsByLiftId } from '@/types';
 import { StatusBar } from './StatusBar';
+// import dayjs from '@/util/dayjs';
 
 type ResortCardProps = {
   mode: 'daily' | 'weekly';
-  currentDate: Date;
   resort: ResortsDto[number];
   lifts: LiftsDto[number];
-  liftLogs: OneDayLiftLogs;
+  liftLogs: LiftSegmentsByLiftId;
+  hours: number[];
 };
 
-const HOURS = Array.from({ length: 11 }, (_, i) => i + 7);
-const SEGMENTS_PER_HOUR = 12; // 5分単位
-
-export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: ResortCardProps) {
-
+export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-
   const showTooltip = useCallback((e: React.MouseEvent<HTMLSpanElement>, text: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({
@@ -32,20 +28,12 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
     setTooltip(null);
   }, []);
 
-  // 利用可能な時間帯を取得
-  const getAvailableHours = () => {
-    const hours = new Set<number>();
-    Object.values(liftLogs).forEach(logs => {
-      logs.forEach(log => {
-        const logTime = new Date(log.created_at);
-        hours.add(logTime.getHours());
-      });
-    });
-    return Array.from(hours).sort((a, b) => a - b);
-  };
+  // liftLogsが存在しない場合は何も表示しない
+  if (!liftLogs || !hours) {
+    return null;
+  }
 
-  const availableHours = getAvailableHours();
-  const totalSegments = availableHours.length * SEGMENTS_PER_HOUR;
+  const availableHours = hours;
 
   return (
     <>
@@ -89,7 +77,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
               
               {/* リフトごとのタイムライン */}
               <div className="space-y-4 w-full">
-                {Object.entries(liftLogs).map(([liftId, status]) => ( 
+                {Object.entries(liftLogs).map(([liftId, liftSegments]) => ( 
                   <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full"> 
                     <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
                       <span className="truncate cursor-help"
@@ -101,13 +89,7 @@ export function ResortCard({ mode, currentDate, resort, lifts, liftLogs }: Resor
                     </div>
                   
                     <div className="relative h-6 w-full">
-                      <StatusBar
-                        liftId={liftId}
-                        liftLogs={status}
-                        currentDate={currentDate}
-                        availableHours={availableHours}
-                        totalSegments={totalSegments}
-                      />
+                      <StatusBar liftSegments={liftSegments} />
                     </div>
                   </div>
                 ))}

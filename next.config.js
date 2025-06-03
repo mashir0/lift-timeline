@@ -24,5 +24,8 @@ const nextConfig = {
 
   // Vercel特有の設定なのでコメントアウト維持
   // distDir: '.vercel/output/static'
+  
+  // 本番環境でのソースマップを無効化
+  productionBrowserSourceMaps: false,  
 }
 module.exports = nextConfig

@@ -1,16 +1,26 @@
 name: Update Lift Statuses
 
 on:
-  schedule:
+  # schedule:
     # 日本時間6:00-18:00（UTC 21:00-9:00）の間、10分ごとに実行
-    - cron: '*/10 21-23,0-9 * * *'
+    # - cron: '*/10 21-23,0-9 * * *'
   # 手動実行も可能にする
   workflow_dispatch:
 
 jobs:
   update-lift-statuses:
     runs-on: ubuntu-latest
+    container:
+      image: alpine:3.18
+    # 高速化のための設定
+    concurrency:
+      group: update-lift-statuses
+      cancel-in-progress: true
     steps:
+      - name: Install curl and jq
+        run: |
+          apk add --no-cache curl jq
+      
       - name: Call Update API
         id: api_call
         run: |

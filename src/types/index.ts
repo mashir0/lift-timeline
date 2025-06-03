@@ -4,7 +4,8 @@ export type OperationStatus =
   "STANDBY" |
   "SUSPENDED" |
   "OPERATION_TEMPORARILY_SUSPENDED" |
-  "TODAY_CLOSED";
+  "TODAY_CLOSED" |
+  "outside-hours";
 
 /***
  * Yukiyama API関連の型定義
@@ -28,14 +29,21 @@ export type YukiyamaResponse = LiftBase & {
 /***
  * Supabase 関連の型定義
  ***/
+// DBクエリのためのタイプ定義
 export type DBQuery = {
   resort_id?: number;
   created_at?: {
-    gte?: string;
-    lte?: string;
+    gte?: Date;
+    lte?: Date;
+    gt?: Date;
+    lt?: Date;
   };
-  [key: string]: any;
-};
+  // range?: {
+  //   from: string | number;
+  //   to: string | number;
+  // };
+  // [key: string]: any;
+} 
 
 // DBのSki Resortの型(ski_resorts)
 export type DBResort = {
@@ -67,7 +75,7 @@ export type DBLiftStatus = {
 
 // DBのLift Statusの型(lift_status_jst)
 // list_statusをJSTに変更したり、他のテーブルからSelectしたView
-export type DBLiftStatusJst = DBLiftStatus & {
+export type DBLiftStatusView = DBLiftStatus & {
   id: string;
   lift_name: string;
   resort_id: number;
@@ -101,19 +109,23 @@ export type LiftsDto = {
 export type liftStatus = {
   status: OperationStatus;
   created_at: string;
+  round_created_at: string;
 }
 
-// 1日分のリゾート内の全リフト運行ログ
+
+// 1日分の1リゾート内の全リフト運行ログ
+// SupabaseDtoから Page.tsx->TimelinePage.tsx に渡す型
 export type OneDayLiftLogs = {
-  [liftId: number]: Array<liftStatus>;
+  liftLogs: { [liftId: number]: liftStatus[] };
+  hours: number[];
 };
 
-// リゾート1つの日付ごとの運行ログ
-export type ResortLiftLogsByDate = {
-  [date: string]: OneDayLiftLogs;
+// 1リフトの運行ログを1セグメントごとに分割した型
+export type LiftSegment = liftStatus & {
+  startIndex: number;
+  count: number;
 };
 
-// 全リゾートの運行ログデータ
-export type AllResortsLiftLogs = {
-  [resortId: number]: ResortLiftLogsByDate;
+export type LiftSegmentsByLiftId = {
+  [liftId: number]: Array<LiftSegment>;
 };
