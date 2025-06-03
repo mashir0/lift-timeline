@@ -1,24 +1,24 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Header } from '@/components/Header';
 import { TimelineControls } from '@/components/TimelineControls';
 import { ResortCard } from '@/components/ResortCard';
 import { Legend } from '@/components/Legend';
-import type { AllResortsLiftLogs, ResortsDto, LiftsDto } from '@/types';
+import type { ResortsDto, LiftsDto, OneDayLiftLogs, LiftSegmentsByLiftId } from '@/types';
 import dayjs from '@/util/dayjs';
 import type { Dayjs } from 'dayjs';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { cp } from 'fs';
+import { getSegmentsAndGroups } from '@/lib/getSegmentsAndGroups';
 
 type TimelinePageProps = {
-  initialResorts: ResortsDto;
-  initialLifts: LiftsDto;
-  initialLogs: AllResortsLiftLogs;
+  resorts: ResortsDto;
+  lifts: LiftsDto;
+  logs: { [resortId: number]: OneDayLiftLogs };
   todayString: string;
   isLoading?: boolean;
 };
 
-export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayString, isLoading: initialIsLoading = false }: TimelinePageProps) {
+export function TimelinePage({ resorts, lifts, logs, todayString, isLoading: initialIsLoading = false }: TimelinePageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
@@ -28,15 +28,15 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
   const [currentDate, setCurrentDate] = useState<Dayjs>(today);
   const [lastUpdated, setLastUpdated] = useState(today);
 
-  const [allResort] = useState(initialResorts);
-  const [allLift] = useState(initialLifts);
-  const [liftLogs, setLiftLogs] = useState(initialLogs);
+  const [allResort] = useState(resorts);
+  const [allLift] = useState(lifts);
+  const [liftLogs, setLiftLogs] = useState(logs);
 
   // initialLogsが変更されたらliftLogsを更新
   useEffect(() => {
-    setLiftLogs(initialLogs);
+    setLiftLogs(logs);
     setIsLoading(false);
-  }, [initialLogs]);
+  }, [logs]);
 
   const handleRefresh = () => {
     setLastUpdated(dayjs());
@@ -94,17 +94,34 @@ export function TimelinePage({ initialResorts, initialLifts, initialLogs, todayS
         ) : (
           <div className="space-y-4">
             {Object.entries(liftLogs).map(([resortId, resortLiftLogs]) => {
-              const dateKey = currentDate.format('YYYY-MM-DD');
-              const dateLiftLogs = resortLiftLogs[dateKey] || {};
-            
+              // const processedLiftLogs = getSegmentsAndGroups(resortLiftLogs.liftLogs[Number(resortId)], resortLiftLogs.hours);
+              const liftSegments: LiftSegmentsByLiftId = {};
+              
+              for (const [liftId, liftLogs] of Object.entries(resortLiftLogs.liftLogs)) {
+                liftSegments[Number(liftId)] = getSegmentsAndGroups(liftLogs, resortLiftLogs.hours);
+              }
+          
               return (
-                <ResortCard
+                <Suspense
                   key={resortId}
-                  resort={allResort[Number(resortId)]}
-                  lifts={allLift[Number(resortId)]}
-                  mode={mode}
-                  liftLogs={dateLiftLogs}
-                />
+                  fallback={
+                    <div className="animate-pulse bg-white rounded-lg shadow p-4 h-32">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                      <div className="space-y-3">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                      </div>
+                    </div>
+                  }
+                >
+                  <ResortCard
+                    resort={allResort[Number(resortId)]}
+                    lifts={allLift[Number(resortId)]}
+                    mode={mode}
+                    liftLogs={liftSegments}
+                    hours={resortLiftLogs.hours}
+                  />
+                </Suspense>
               );
             })}
           </div>

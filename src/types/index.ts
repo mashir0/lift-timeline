@@ -112,33 +112,20 @@ export type liftStatus = {
   round_created_at: string;
 }
 
+
+// 1日分の1リゾート内の全リフト運行ログ
+// SupabaseDtoから Page.tsx->TimelinePage.tsx に渡す型
+export type OneDayLiftLogs = {
+  liftLogs: { [liftId: number]: liftStatus[] };
+  hours: number[];
+};
+
+// 1リフトの運行ログを1セグメントごとに分割した型
 export type LiftSegment = liftStatus & {
   startIndex: number;
   count: number;
 };
 
 export type LiftSegmentsByLiftId = {
-  hours: number[];
-  liftSegments: {
-    [liftId: number]: Array<LiftSegment>;
-  };
+  [liftId: number]: Array<LiftSegment>;
 };
-
-
-
-
-// 1日分のリゾート内の全リフト運行ログ
-export type OneDayLiftLogs = {
-  [liftId: number]: Array<liftStatus>;
-};
-
-// リゾート1つの日付ごとの運行ログ
-export type ResortLiftLogsByDate = {
-  [date: string]: LiftSegmentsByLiftId;
-};
-
-// 全リゾートの運行ログデータ
-export type AllResortsLiftLogs = {
-  [resortId: number]: ResortLiftLogsByDate;
-};
-

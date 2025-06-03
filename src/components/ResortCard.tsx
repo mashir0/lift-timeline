@@ -9,9 +9,10 @@ type ResortCardProps = {
   resort: ResortsDto[number];
   lifts: LiftsDto[number];
   liftLogs: LiftSegmentsByLiftId;
+  hours: number[];
 };
 
-export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
+export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const showTooltip = useCallback((e: React.MouseEvent<HTMLSpanElement>, text: string) => {
@@ -28,11 +29,11 @@ export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
   }, []);
 
   // liftLogsが存在しない場合は何も表示しない
-  if (!liftLogs || !liftLogs.hours) {
+  if (!liftLogs || !hours) {
     return null;
   }
 
-  const availableHours = liftLogs.hours;
+  const availableHours = hours;
 
   return (
     <>
@@ -76,7 +77,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
               
               {/* リフトごとのタイムライン */}
               <div className="space-y-4 w-full">
-                {Object.entries(liftLogs.liftSegments).map(([liftId, status]) => ( 
+                {Object.entries(liftLogs).map(([liftId, liftSegments]) => ( 
                   <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full"> 
                     <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
                       <span className="truncate cursor-help"
@@ -88,7 +89,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs }: ResortCardProps) {
                     </div>
                   
                     <div className="relative h-6 w-full">
-                      <StatusBar liftSegments={status} />
+                      <StatusBar liftSegments={liftSegments} />
                     </div>
                   </div>
                 ))}

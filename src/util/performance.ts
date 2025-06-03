@@ -35,7 +35,7 @@ class PerformanceMonitor {
 
     const currentMetric = metrics[metrics.length - 1];
     currentMetric.endTime = endTime;
-    currentMetric.duration = endTime - currentMetric.startTime;
+    currentMetric.duration = Number((endTime - currentMetric.startTime).toFixed(2));
 
     return currentMetric;
   }

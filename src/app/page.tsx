@@ -1,9 +1,8 @@
 import { getAllResorts, getAllLifts } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
-import type { AllResortsLiftLogs, LiftSegmentsByLiftId } from '@/types';
+import type { OneDayLiftLogs } from '@/types';
 import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
-import PerformanceMonitor from '@/util/performance';
 import { headers } from 'next/headers';
 
 export const runtime = 'edge';
@@ -31,8 +30,6 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
   const dateStr = date.format('YYYY-MM-DD');
 
   try {
-    PerformanceMonitor.start('page-load-total');
-    
     // 1. 基本情報の取得
     const [resorts, lifts] = await Promise.all([
       getAllResorts(),
@@ -41,13 +38,12 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     
     // 2. リゾートごとにリフトログデータを取得
     const resortIds = Object.keys(resorts);
-    const logs: AllResortsLiftLogs = {};
+    const logs: { [resrotId: number]: OneDayLiftLogs } = {};
     
     // 現在のリクエストのヘッダーからホスト情報を取得
     const headersList = headers();
     const host = headersList.get('host') || 'localhost:3000';
-    console.log('env', process.env.ENVIRONMENT);
-    const protocol = process.env.ENVIRONMENT === 'development' ? 'http' : 'https';
+    const protocol = 'http'; // 開発環境では常にhttpを使用
     const baseUrl = `${protocol}://${host}`;
     
     // バッチ処理でリクエストを制限
@@ -79,28 +75,17 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
       
       // バッチの結果を処理
       batchResults.forEach(result => {
-        if (result && Object.keys(result.data.liftSegments).length > 0) {
-          logs[Number(result.resortId)] = {
-            [dateStr]: result.data
-          };
+        if (result && Object.keys(result.data.liftLogs).length > 0) {
+          logs[Number(result.resortId)] = result.data
         }
       });
     }
     
-    console.log(`Processed ${Object.keys(logs).length} resorts for date ${dateStr}`);
-    
-    const totalMetrics = PerformanceMonitor.end('page-load-total');
-    console.log('Page load パフォーマンス:', {
-      totalDuration: totalMetrics.duration,
-      resortsProcessed: Object.keys(logs).length,
-      dateStr: dateStr
-    });
-    
-    return (
+  return (
       <TimelinePage 
-        initialResorts={resorts} 
-        initialLifts={lifts} 
-        initialLogs={logs} 
+        resorts={resorts} 
+        lifts={lifts} 
+        logs={logs} 
         todayString={todayStr}
         isLoading={false}
       />
@@ -109,13 +94,9 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     console.error('Error fetching data:', error);
     // エラー時のフォールバックUIを表示
     return (
-      <TimelinePage 
-        initialResorts={{}}
-        initialLifts={{}}
-        initialLogs={{}}
-        todayString={todayStr}
-        isLoading={false}
-      />
+      <div>
+        <h1>Error</h1>
+      </div>
     );
   }
 }
