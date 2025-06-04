@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 type HeaderProps = {
   lastUpdated: Date;
@@ -27,7 +27,7 @@ export function Header({ lastUpdated, onRefresh }: HeaderProps) {
               onClick={onRefresh}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
-              <RefreshCw className="w-5 h-5 text-gray-600" />
+              <ArrowPathIcon className="w-5 h-5 text-gray-600" />
             </button>
           </div>
         </div>

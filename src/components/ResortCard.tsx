@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Map } from 'lucide-react';
+import { MapIcon } from '@heroicons/react/24/outline';
 import type { ResortsDto, LiftsDto, LiftSegmentsByLiftId } from '@/types';
 import { StatusBar } from './StatusBar';
 // import dayjs from '@/util/dayjs';
@@ -110,7 +110,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
             rel="noopener noreferrer"
             className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
-            <Map className="w-4 h-4 mr-2" />
+            <MapIcon className="w-4 h-4 mr-2" />
             ゲレンデマップを見る
           </a>
           {/* <a

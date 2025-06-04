@@ -15,14 +15,19 @@ const todayStr = today.format('YYYY-MM-DD');
 // バッチサイズを定義（同時実行数を制限）
 const BATCH_SIZE = 2;
 
-export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
+type Props = {
+  searchParams: { [key: string]: string | string[] | undefined }
+}
+
+export default async function Home({ searchParams }: Props) {
   // 日付パラメータがない場合は本日の日付にリダイレクト
-  if (!searchParams.date) {
+  const dateParam = searchParams.date as string | undefined;
+  if (!dateParam) {
     redirect(`/?date=${todayStr}`);
   }
 
   // 日付のバリデーション
-  const date = dayjs.tz(searchParams.date,'UTC').tz('Asia/Tokyo');
+  const date = dayjs.tz(dateParam,'UTC').tz('Asia/Tokyo');
   if (!date.isValid()) {
     redirect(`/?date=${todayStr}`);
   }
@@ -41,7 +46,7 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     const logs: { [resrotId: number]: OneDayLiftLogs } = {};
     
     // 現在のリクエストのヘッダーからホスト情報を取得
-    const headersList = headers();
+    const headersList = await headers();
     const host = headersList.get('host') || 'localhost:3000';
     const protocol = 'http'; // 開発環境では常にhttpを使用
     const baseUrl = `${protocol}://${host}`;
