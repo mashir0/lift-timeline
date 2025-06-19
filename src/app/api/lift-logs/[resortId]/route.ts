@@ -26,4 +26,3 @@ app.get('/api/lift-logs/:resortId', async (c) => {
 });
 
 export const GET = handle(app);
-export const runtime = 'edge'; 

@@ -5,7 +5,6 @@ import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
-export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
 
@@ -15,11 +14,8 @@ const todayStr = today.format('YYYY-MM-DD');
 // バッチサイズを定義（同時実行数を制限）
 const BATCH_SIZE = 2;
 
-type Props = {
-  searchParams: { [key: string]: string | string[] | undefined }
-}
-
-export default async function Home({ searchParams }: Props) {
+export default async function Home(props: { searchParams: Promise<{ date?: string }>}) {
+  const searchParams = await props.searchParams;
   // 日付パラメータがない場合は本日の日付にリダイレクト
   const dateParam = searchParams.date as string | undefined;
   if (!dateParam) {

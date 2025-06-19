@@ -15,8 +15,6 @@ type TestResult = {
   }>;
 };
 
-export const runtime = 'edge';
-
 export default function TestPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
