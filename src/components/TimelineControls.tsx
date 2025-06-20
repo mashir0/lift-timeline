@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { Dayjs } from 'dayjs';
 
 type TimelineControlsProps = {
@@ -48,7 +48,7 @@ export function TimelineControls({
                     : 'opacity-50 cursor-not-allowed'
                 }`}
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeftIcon className="w-5 h-5" />
               </button>
               <button
                 onClick={onToday}
@@ -65,7 +65,7 @@ export function TimelineControls({
                     : 'opacity-50 cursor-not-allowed'
                 }`}
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRightIcon className="w-5 h-5" />
               </button>
             </div>
           )}

@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateAllLiftStatuses } from '@/lib/scheduledTasks';
 
-// CloudFlare Workersでの実行時にEdgeランタイムを指定
-export const runtime = 'edge';
-
 export async function GET() {
   console.log('リフト情報更新APIが呼び出されました:', new Date().toISOString());
   

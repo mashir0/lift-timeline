@@ -1,8 +1,22 @@
 # Cloudflare Pages用の設定
 name = "lift-timeline"
-compatibility_date = "2024-02-01"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-01"
+compatibility_flags = [
+  "nodejs_compat",
+  "global_fetch_strictly_public"
+]
+
+# アセット設定
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# R2バインディング
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "next-inc-cache"
+
 
 # Cloudflare Workers用の設定
 [vars]

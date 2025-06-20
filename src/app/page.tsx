@@ -5,7 +5,6 @@ import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
-export const runtime = 'edge';
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
 
@@ -15,14 +14,16 @@ const todayStr = today.format('YYYY-MM-DD');
 // バッチサイズを定義（同時実行数を制限）
 const BATCH_SIZE = 2;
 
-export default async function Home({ searchParams,}: { searchParams: { date?: string }}) {
+export default async function Home(props: { searchParams: Promise<{ date?: string }>}) {
+  const searchParams = await props.searchParams;
   // 日付パラメータがない場合は本日の日付にリダイレクト
-  if (!searchParams.date) {
+  const dateParam = searchParams.date as string | undefined;
+  if (!dateParam) {
     redirect(`/?date=${todayStr}`);
   }
 
   // 日付のバリデーション
-  const date = dayjs.tz(searchParams.date,'UTC').tz('Asia/Tokyo');
+  const date = dayjs.tz(dateParam,'UTC').tz('Asia/Tokyo');
   if (!date.isValid()) {
     redirect(`/?date=${todayStr}`);
   }
@@ -41,7 +42,7 @@ export default async function Home({ searchParams,}: { searchParams: { date?: st
     const logs: { [resrotId: number]: OneDayLiftLogs } = {};
     
     // 現在のリクエストのヘッダーからホスト情報を取得
-    const headersList = headers();
+    const headersList = await headers();
     const host = headersList.get('host') || 'localhost:3000';
     const protocol = 'http'; // 開発環境では常にhttpを使用
     const baseUrl = `${protocol}://${host}`;
