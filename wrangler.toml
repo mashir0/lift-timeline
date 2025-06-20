@@ -17,6 +17,7 @@ binding = "ASSETS"
 binding = "NEXT_INC_CACHE_R2_BUCKET"
 bucket_name = "next-inc-cache"
 
+
 # Cloudflare Workers用の設定
 [vars]
 ENVIRONMENT = "development"
