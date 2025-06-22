@@ -15,6 +15,9 @@ const todayStr = today.format('YYYY-MM-DD');
 const BATCH_SIZE = 2;
 
 export default async function Home(props: { searchParams: Promise<{ date?: string }>}) {
+  const startTime = Date.now();
+  console.log('🚀 [page.tsx] 処理開始:', new Date().toISOString());
+  
   const searchParams = await props.searchParams;
   // 日付パラメータがない場合は本日の日付にリダイレクト
   const dateParam = searchParams.date as string | undefined;
@@ -29,17 +32,29 @@ export default async function Home(props: { searchParams: Promise<{ date?: strin
   }
 
   const dateStr = date.format('YYYY-MM-DD');
+  console.log('📅 [page.tsx] 日付処理完了:', dateStr, '経過時間:', Date.now() - startTime, 'ms');
 
   try {
     // 1. 基本情報の取得
+    console.log('🏔️ [page.tsx] 基本情報取得開始');
+    const basicInfoStart = Date.now();
     const [resorts, lifts] = await Promise.all([
       getAllResorts(),
       getAllLifts()
     ]);
+    console.log('✅ [page.tsx] 基本情報取得完了:', {
+      resortsCount: Object.keys(resorts).length,
+      liftsCount: Object.keys(lifts).length,
+      duration: Date.now() - basicInfoStart,
+      unit: 'ms'
+    });
     
     // 2. リゾートごとにリフトログデータを取得
     const resortIds = Object.keys(resorts);
     const logs: { [resrotId: number]: OneDayLiftLogs } = {};
+    
+    console.log('🔄 [page.tsx] リゾートデータ取得開始:', resortIds.length, '件');
+    const resortDataStart = Date.now();
     
     // 現在のリクエストのヘッダーからホスト情報を取得
     const headersList = await headers();
@@ -50,8 +65,12 @@ export default async function Home(props: { searchParams: Promise<{ date?: strin
     // バッチ処理でリクエストを制限
     for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
       const batch = resortIds.slice(i, i + BATCH_SIZE);
+      console.log(`📦 [page.tsx] バッチ処理 ${i/BATCH_SIZE + 1}:`, batch);
+      const batchStart = Date.now();
+      
       const batchPromises = batch.map(async (resortId) => {
         try {
+          const apiStart = Date.now();
           const response = await fetch( `${baseUrl}/api/lift-logs/${resortId}?date=${dateStr}`, { 
               method: 'GET',
               headers: {
@@ -61,18 +80,27 @@ export default async function Home(props: { searchParams: Promise<{ date?: strin
             }
           );
           if (!response.ok) {
-            console.error(`Failed to fetch logs for resort ${resortId}`);
+            console.error(`❌ [page.tsx] Failed to fetch logs for resort ${resortId}`);
             return null;
           }
           const data = await response.json();
+          console.log(`✅ [page.tsx] リゾート ${resortId} 取得完了:`, {
+            dataSize: Object.keys(data.liftLogs).length,
+            duration: Date.now() - apiStart,
+            unit: 'ms'
+          });
           return { resortId, data };
         } catch (error) {
-          console.error(`Error fetching logs for resort ${resortId}:`, error);
+          console.error(`❌ [page.tsx] Error fetching logs for resort ${resortId}:`, error);
           return null;
         }
       });
       
       const batchResults = await Promise.all(batchPromises);
+      console.log(`✅ [page.tsx] バッチ ${i/BATCH_SIZE + 1} 完了:`, {
+        duration: Date.now() - batchStart,
+        unit: 'ms'
+      });
       
       // バッチの結果を処理
       batchResults.forEach(result => {
@@ -81,6 +109,12 @@ export default async function Home(props: { searchParams: Promise<{ date?: strin
         }
       });
     }
+    
+    console.log('🎉 [page.tsx] 全処理完了:', {
+      totalDuration: Date.now() - startTime,
+      unit: 'ms',
+      resortsCount: Object.keys(logs).length
+    });
     
   return (
       <TimelinePage 
@@ -92,7 +126,7 @@ export default async function Home(props: { searchParams: Promise<{ date?: strin
       />
     );
   } catch (error) {
-    console.error('Error fetching data:', error);
+    console.error('❌ [page.tsx] Error fetching data:', error);
     // エラー時のフォールバックUIを表示
     return (
       <div>

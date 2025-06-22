@@ -7,6 +7,10 @@ compatibility_flags = [
   "global_fetch_strictly_public"
 ]
 
+# ログ設定
+[observability.logs]
+enabled = true
+
 # アセット設定
 [assets]
 directory = ".open-next/assets"
