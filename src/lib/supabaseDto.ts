@@ -167,13 +167,15 @@ export async function fetchOneDayLiftLogs(
     unit: 'ms'
   });
   
-  // リフト運行ログデータ取得（全リゾートのデータを一度に取得）
+  // ✅ インデックスを活用した軽量クエリ
   console.log(`🔄 [fetchOneDayLiftLogs] データベースクエリ開始`);
   const queryStart = Date.now();
+  
   const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
     resort_id: resortId,
     created_at: { gte: fromDate, lt: toDate } 
   });
+  
   console.log(`✅ [fetchOneDayLiftLogs] データベースクエリ完了:`, {
     dataSize: data?.length || 0,
     duration: Date.now() - queryStart,
@@ -185,14 +187,13 @@ export async function fetchOneDayLiftLogs(
     return { liftLogs: {}, hours: [] };
   }
 
-  // 1. メモリ効率を改善：オブジェクトを使用してデータを整理
+  // ✅ 軽量なデータ変換
   console.log(`🔄 [fetchOneDayLiftLogs] データ処理開始`);
   const processStart = Date.now();
-  const resortLiftLogs: { [liftId: number]: DBLiftStatusView[] } = {};
+  const resortLiftLogs: { [liftId: number]: liftStatus[] } = {};
   const hours = new Set<number>();
   
-  
-  // liftIdごとにログをまとめる
+  // liftIdごとにログをまとめる（軽量処理）
   for (const log of data) {
     const hour = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo').hour();
     hours.add(hour);
@@ -200,80 +201,44 @@ export async function fetchOneDayLiftLogs(
     if (!resortLiftLogs[log.lift_id]) {
       resortLiftLogs[log.lift_id] = [];
     }
-    resortLiftLogs[log.lift_id].push(log);
+    
+    // 型変換: DBLiftStatusView → liftStatus
+    const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
+    resortLiftLogs[log.lift_id].push({
+      status: log.status,
+      created_at: log.created_at,
+      round_created_at: roundCreatedAt,
+    });
   }
   
-  console.log(`✅ [fetchOneDayLiftLogs] データ整理完了:`, {
+  // 各リフトのログを時間順にソート（軽量処理）
+  for (const liftId in resortLiftLogs) {
+    resortLiftLogs[liftId].sort((a, b) => 
+      dayjs.tz(a.created_at, 'UTC').valueOf() - dayjs.tz(b.created_at, 'UTC').valueOf()
+    );
+  }
+  
+  console.log(`✅ [fetchOneDayLiftLogs] データ処理完了:`, {
     liftCount: Object.keys(resortLiftLogs).length,
-    hoursCount: hours.size,
     duration: Date.now() - processStart,
     unit: 'ms'
   });
+
+  // 2. 時間配列をソート
+  const sortedHours = Array.from(hours).sort((a, b) => a - b);
   
-  // 2. 各リフトのログを時間順にソートし、重複除去と連続ステータス処理
-  console.log(`🔄 [fetchOneDayLiftLogs] ログ処理開始`);
-  const logProcessStart = Date.now();
-  const logsByLiftId: { [liftId: number]: liftStatus[] } = {};
-  
-  for (const [liftId, liftLogs] of Object.entries(resortLiftLogs)) {
-    // 時間順にソート
-    // liftLogs.sort((a, b) => 
-    //   dayjs.tz(a.created_at, 'UTC').valueOf() - dayjs.tz(b.created_at, 'UTC').valueOf()
-    // );
-    
-    const processedLogs: liftStatus[] = [];
-    let lastStatus: liftStatus | undefined;
-    
-    for (let i = 0; i < liftLogs.length; i++) {
-      const log = liftLogs[i];
-      const roundCreatedAt = roundMinutes(dayjs.tz(log.created_at, 'UTC')).toISOString();
-      
-      // 同じ時間のログがある場合は、1つ前のログを削除
-      if (lastStatus?.round_created_at === roundCreatedAt) {
-        processedLogs.pop();
-        lastStatus = processedLogs.at(-1);
-      }
-      
-      // 連続する同じステータスは無視（最後のログは必ず追加）
-      const isLastLogForThisLift = i === liftLogs.length - 1;
-      if (!lastStatus || lastStatus.status !== log.status || isLastLogForThisLift) {
-        const newStatus = {
-          status: log.status,
-          created_at: log.created_at,
-          round_created_at: roundCreatedAt,
-        };
-        processedLogs.push(newStatus);
-        lastStatus = newStatus;
-      }
-    }
-    logsByLiftId[Number(liftId)] = processedLogs;
-  }
-
-  console.log(`✅ [fetchOneDayLiftLogs] ログ処理完了:`, {
-    processedLiftCount: Object.keys(logsByLiftId).length,
-    duration: Date.now() - logProcessStart,
-    unit: 'ms'
-  });
-
-  // // 3. セグメントとグループの計算を最適化
-  // const liftSegments: { [liftId: number]: LiftSegment[] } = {};
-  // const sortedHours = Array.from(hours).sort((a, b) => a - b);
-  // for (const [liftId, liftLogs] of logsByLiftId) {
-  //   liftSegments[liftId] = getSegmentsAndGroups(liftLogs, sortedHours);
-  // }
-
-  const metrics = PerformanceMonitor.end('fetch-one-day-lift-logs');
-  console.log('🎉 [fetchOneDayLiftLogs] 全処理完了:', {
-    resortId,
+  console.log(`🎉 [fetchOneDayLiftLogs] 全処理完了:`, {
     totalDuration: Date.now() - startTime,
-    performanceDuration: metrics.duration,
-    dataSize: data.length,
-    unit: 'ms'
+    unit: 'ms',
+    liftCount: Object.keys(resortLiftLogs).length,
+    hourCount: sortedHours.length
   });
 
-  return { 
-    liftLogs: logsByLiftId, 
-    hours: Array.from(hours).sort((a, b) => a - b)
+  PerformanceMonitor.end('fetch-one-day-lift-logs');
+  
+  return {
+    liftLogs: resortLiftLogs,
+    hours: sortedHours
   };
 }
 

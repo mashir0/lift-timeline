@@ -1,6 +1,5 @@
 'use client';
 import { defaultStatusJa, getStatusColor } from '@/lib/constants';
-import dayjs from '@/util/dayjs';
 import type { LiftSegment } from '@/types';
 
 type StatusBarProps = {
@@ -22,11 +21,10 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         // 幅に応じてテキスト表示を判断（レスポンシブ対応）
         const shouldShowText = segment.count >= 3;
 
-        // ツールチップ用のテキスト作成
-        const startTime = dayjs.tz(segment.created_at, 'UTC').tz('Asia/Tokyo').format('HH:mm');
-        const endTime = dayjs.tz(nextSegment?.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm');
-        const timeRange = `${startTime}〜${endTime}`;
-        const tooltipText = `${segment.status} (${timeRange})`;
+        // ツールチップ用のテキスト作成（事前計算された時間範囲を使用）
+        const tooltipText = segment.timeRange 
+          ? `${segment.status} (${segment.timeRange})`
+          : segment.status;
 
         return (
           // セグメント 

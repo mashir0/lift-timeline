@@ -1,6 +1,8 @@
+'use client';
 import React from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { Dayjs } from 'dayjs';
+import dayjs from '@/util/dayjs';
 
 type TimelineControlsProps = {
   mode: 'daily' | 'weekly';
@@ -21,78 +23,58 @@ export function TimelineControls({
   onNext,
   onModeChange,
 }: TimelineControlsProps) {
-  const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo')
-  
-  // ボタンの有効/無効を判定
-  const canGoPrevious = currentDate.tz('Asia/Tokyo').isAfter(sevenDaysAgo)
-  const canGoNext = currentDate.tz('Asia/Tokyo').isBefore(today.tz('Asia/Tokyo'))
-
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            {currentDate.format('YYYY年MM月DD日')}
-          </h2>
-        </div>
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onPrevious}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="前の日"
+        >
+          <ChevronLeftIcon className="w-5 h-5" />
+        </button>
         
-        <div className="flex items-center gap-4">
-          {mode === 'daily' && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onPrevious}
-                disabled={!canGoPrevious}
-                className={`p-2 rounded-xl ${
-                  canGoPrevious 
-                    ? 'hover:bg-gray-100' 
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <ChevronLeftIcon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={onToday}
-                className={`px-4 py-2 rounded-xl`}
-              >
-                今日 
-              </button>
-              <button
-                onClick={onNext}
-                disabled={!canGoNext}
-                className={`p-2 rounded-xl ${
-                  canGoNext 
-                    ? 'hover:bg-gray-100' 
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <ChevronRightIcon className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-          
-          <div className="flex rounded-lg border border-gray-200">
-            <button
-              onClick={() => onModeChange('daily')}
-              className={`px-4 py-2 text-sm rounded-l-lg ${
-                mode === 'daily'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'hover:bg-gray-50'
-              }`}
-            >
-              日次表示
-            </button>
-            <button
-              onClick={() => onModeChange('weekly')}
-              className={`px-4 py-2 text-sm rounded-r-lg ${
-                mode === 'weekly'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'hover:bg-gray-50'
-              }`}
-            >
-              週次表示
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={onToday}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          今日
+        </button>
+        
+        <button
+          onClick={onNext}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="次の日"
+        >
+          <ChevronRightIcon className="w-5 h-5" />
+        </button>
+        
+        <span className="text-lg font-semibold text-gray-900 ml-2">
+          {currentDate.format('YYYY年M月D日')}
+        </span>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onModeChange('daily')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            mode === 'daily'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          日別
+        </button>
+        <button
+          onClick={() => onModeChange('weekly')}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            mode === 'weekly'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          週別
+        </button>
       </div>
     </div>
   );

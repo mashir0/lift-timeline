@@ -124,6 +124,7 @@ export type OneDayLiftLogs = {
 export type LiftSegment = liftStatus & {
   startIndex: number;
   count: number;
+  timeRange?: string; // 時間範囲（例: "17:53〜21:39"）
 };
 
 export type LiftSegmentsByLiftId = {

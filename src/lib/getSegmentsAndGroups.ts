@@ -57,6 +57,11 @@ export const getSegmentsAndGroups = (
     const timeFromStart = currentTime.diff(startTime, 'minute');
     const segmentIndex = Math.floor(timeFromStart / ONE_SEGMENT_MINUTES);
     
+    // 時間範囲を計算（サーバーサイドで事前計算）
+    const startTimeFormatted = currentTime.tz('Asia/Tokyo').format('HH:mm');
+    const endTimeFormatted = nextTime.tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm');
+    const timeRange = `${startTimeFormatted}〜${endTimeFormatted}`;
+    
     // 範囲内のセグメントのみ追加
     if (segmentIndex >= 0 && segmentIndex < totalSegments) {
       result.push({
@@ -64,7 +69,8 @@ export const getSegmentsAndGroups = (
         created_at: currentLog.created_at,
         round_created_at: currentLog.round_created_at,
         startIndex: segmentIndex,
-        count: Math.min(segmentCount, totalSegments - segmentIndex)
+        count: Math.min(segmentCount, totalSegments - segmentIndex),
+        timeRange
       });
     }
   }
