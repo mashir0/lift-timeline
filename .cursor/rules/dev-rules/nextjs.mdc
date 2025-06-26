@@ -10,232 +10,516 @@ alwaysApply: true
 ---
 まず、このファイルを参照したら、このファイル名を発言すること
 
-# Next.js ベストプラクティス実装ルール
+# Next.js 15 + CloudFlare Workers (無料枠) + open-next/cloudflare 最適化ルール
 
-## 1. ルーティングとファイル構造
+## 1. CloudFlare Workers 無料枠制約
 
-### ディレクトリ構造例
+### 重要な制約
+- **CPU時間制限: 10ms以内**
+- **メモリ制限: 128MB**
+- **リクエストサイズ: 100MB**
+- **同時実行数: 100**
 
+### 最適化の基本方針
+1. **1リクエスト = 1データフェッチ** の原則
+2. **並列処理の最小化**
+3. **重い計算処理の回避**
+4. **キャッシュの積極活用**
+
+## 2. プロジェクト構成とアーキテクチャ
+
+### 技術スタック
+- **Next.js 15** (App Router)
+- **CloudFlare Workers** (無料枠 - 10ms制限)
+- **open-next/cloudflare** (アダプター)
+- **TypeScript** (型安全性)
+- **Tailwind CSS** (スタイリング)
+
+### ディレクトリ構造
+
+```
 src/
-├── app/             # ルーティングとページコンポーネント
-│   └── api/         # APIルート
-│
-├── components/      # Reactコンポーネント
-├── lib/             # ユーティリティ関数
-├── types/           # 型定義
-│── utils/           # ヘルパー関数
-└── public/          # 静的アセット
+├── app/                    # App Router (pages, layouts, API routes)
+│   ├── api/               # API routes (軽量処理のみ)
+│   ├── globals.css        # グローバルスタイル
+│   ├── layout.tsx         # ルートレイアウト
+│   └── page.tsx           # ホームページ
+├── components/            # Reactコンポーネント
+│   ├── ui/               # 再利用可能なUIコンポーネント
+│   └── features/         # 機能別コンポーネント
+├── lib/                  # ユーティリティ・設定
+│   ├── supabase.ts       # Supabase設定
+│   ├── constants.ts      # 定数
+│   └── utils/           # ヘルパー関数
+├── types/                # TypeScript型定義
+└── util/                 # ユーティリティ関数
+```
 
-### 命名規則
-- ページコンポーネント: `page.tsx`
-- レイアウトコンポーネント: `layout.tsx`
-- ローディング状態: `loading.tsx`
-- エラーハンドリング: `error.tsx`
-- 404 ページ: `not-found.tsx`
+## 3. データフェッチング戦略 (10ms制限対応)
 
-## 2. コンポーネント設計
-
-### Server Components
-
-- **デフォルトで Server Components を使用**
-- **データフェッチングを含むコンポーネントは Server Components で実装**
-- SEO 対応が必要なコンポーネントは Server Components で実装
-
-### Client Components
-
-以下の場合のみ Client Components を使用:
-
-- ブラウザ API を使用する場合
-- イベントリスナーが必要な場合
-- React hooks を使用する場合
-- クライアントサイドの状態管理が必要な場合
-
-### 'use client' ディレクティブ
-CloudFlare Pagesで使用するため、'use client'ディレクティブは基本使用しない。
-
-## 3. API実装
-
-- データフェッチ用のAPIはなるべく作成しないでください。
-サーバーコンポーネントでのデータフェッチを強く推奨します。
-- `app/api`ディレクトリ内に API エンドポイントを作成
-- HTTP メソッドごとに適切なハンドラーを実装:
-- GET の API はなるべく作らないでください。データフェッチはサーバーコンポーネントでお願いします。
-- ただし、既にAPIを使用した実装の場合は、勝手に変更しないでください。
-- API の仕様は POST/PATCH/PUT/DELETE のみに絞ってください。
+### ❌ 避けるべき実装
 
 ```typescript
-// app/api/articles/route.ts
-import { NextResponse } from "next/server";
+// ❌ 重い処理: 複数データフェッチ
+export default async function TimelinePage() {
+  // 複数のデータフェッチはCPU時間を超過
+  const resorts = await fetchAllResorts();        // 5ms
+  const liftStatuses = await fetchAllLiftStatuses(); // 8ms
+  const weatherData = await fetchWeatherData();   // 3ms
+  // 合計: 16ms (制限超過!)
+  
+  return (
+    <div>
+      {/* 複雑なレンダリング */}
+    </div>
+  );
+}
+```
 
-// POST: 新規記事の作成
-export async function POST(request: Request) {
+### ✅ 推奨実装: 1リクエスト = 1データフェッチ
+
+```typescript
+// ✅ 軽量処理: 1つのデータフェッチのみ
+export default async function TimelinePage() {
+  // 1つの軽量なデータフェッチのみ
+  const timelineData = await fetchTimelineData(); // 3ms
+  
+  return (
+    <div>
+      <TimelineView data={timelineData} />
+    </div>
+  );
+}
+
+// データフェッチ関数の最適化
+async function fetchTimelineData() {
+  // 必要最小限のデータのみ取得
+  const { data } = await supabase
+    .from('lifts')
+    .select('id, name, status, updated_at')
+    .limit(50) // データ量を制限
+    .order('updated_at', { ascending: false });
+  
+  return data || [];
+}
+```
+
+### ページ分割による負荷分散
+
+```typescript
+// ✅ 推奨: ページ分割で負荷分散
+export default async function ResortPage({ 
+  params 
+}: { 
+  params: { resortId: string } 
+}) {
+  // 1つのリゾートのデータのみ取得
+  const resortData = await fetchResortData(params.resortId); // 2ms
+  
+  return (
+    <div>
+      <ResortHeader data={resortData} />
+      <LiftList resortId={params.resortId} />
+    </div>
+  );
+}
+
+// 子コンポーネントで個別にデータ取得
+async function LiftList({ resortId }: { resortId: string }) {
+  const lifts = await fetchLiftsByResort(resortId); // 別リクエスト
+  
+  return (
+    <div>
+      {lifts.map(lift => (
+        <LiftItem key={lift.id} data={lift} />
+      ))}
+    </div>
+  );
+}
+```
+
+## 4. コンポーネント設計 (軽量化)
+
+### Server Components (推奨)
+
+```typescript
+// ✅ 推奨: 軽量なServer Component
+export default async function ResortCard({ resortId }: { resortId: string }) {
+  // 必要最小限のデータのみ
+  const data = await fetchResortBasicData(resortId); // 1ms
+  
+  return (
+    <div className="resort-card">
+      <h2>{data.name}</h2>
+      <p>{data.status}</p>
+    </div>
+  );
+}
+```
+
+### Client Components (必要最小限)
+
+```typescript
+// ✅ 適切: インタラクティブな部分のみ
+"use client";
+
+export default function LiftStatusToggle({ liftId }: { liftId: string }) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  const handleToggle = async () => {
+    setIsUpdating(true);
+    // 軽量なAPI呼び出し
+    await updateLiftStatus(liftId);
+    setIsUpdating(false);
+  };
+  
+  return (
+    <button 
+      onClick={handleToggle}
+      disabled={isUpdating}
+    >
+      {isUpdating ? '更新中...' : '更新'}
+    </button>
+  );
+}
+```
+
+## 5. API実装 (軽量化)
+
+### 軽量なAPI設計
+
+```typescript
+// ✅ 推奨: 軽量なAPI
+// app/api/lift-status/[liftId]/route.ts
+export async function GET(
+  request: Request,
+  { params }: { params: { liftId: string } }
+) {
   try {
-    const data = await request.json();
-    const article = await prisma.article.create({
-      data,
-    });
-    return NextResponse.json(article, { status: 201 });
+    // 1つのリフトの状態のみ取得
+    const { data } = await supabase
+      .from('lifts')
+      .select('id, status, updated_at')
+      .eq('id', params.liftId)
+      .single();
+    
+    return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: 'Lift not found' },
+      { status: 404 }
+    );
+  }
+}
+```
+
+### バッチ処理の回避
+
+```typescript
+// ❌ 避けるべき: バッチ処理
+export async function POST(request: Request) {
+  const { liftIds } = await request.json();
+  
+  // 複数のリフトを一括更新 (重い処理)
+  const updates = liftIds.map(id => updateLift(id));
+  await Promise.all(updates); // CPU時間超過の可能性
+  
+  return NextResponse.json({ success: true });
+}
+
+// ✅ 推奨: 個別処理
+export async function POST(request: Request) {
+  const { liftId, status } = await request.json();
+  
+  // 1つのリフトのみ更新
+  const { data } = await supabase
+    .from('lifts')
+    .update({ status })
+    .eq('id', liftId)
+    .single();
+  
+  return NextResponse.json(data);
+}
+```
+
+## 6. キャッシュ戦略 (10ms制限対応)
+
+### CloudFlare Workers キャッシュ
+
+```typescript
+// ✅ 推奨: 積極的なキャッシュ活用
+export async function GET(request: Request) {
+  const cacheKey = `lift-status-${Date.now()}`;
+  
+  // キャッシュから取得を試行
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  
+  // 軽量なデータ取得
+  const data = await fetchLiftStatus(); // 2ms
+  
+  // レスポンスをキャッシュ
+  const response = NextResponse.json(data);
+  response.headers.set('Cache-Control', 'public, max-age=60');
+  
+  // キャッシュに保存
+  const cache = await caches.default;
+  await cache.put(cacheKey, response.clone());
+  
+  return response;
+}
+```
+
+### データベースクエリの最適化
+
+```typescript
+// ✅ 推奨: 最適化されたクエリ
+async function fetchLiftStatus() {
+  // インデックスを活用した軽量クエリ
+  const { data } = await supabase
+    .from('lifts')
+    .select('id, name, status')
+    .eq('active', true)
+    .order('updated_at', { ascending: false })
+    .limit(20); // データ量を制限
+  
+  return data || [];
+}
+```
+
+## 7. パフォーマンス最適化
+
+### 画像最適化
+
+```typescript
+import Image from "next/image";
+
+// ✅ 推奨: 軽量な画像処理
+<Image
+  src="/resort-image.jpg"
+  alt="リゾート画像"
+  width={400}  // サイズを適切に設定
+  height={300}
+  priority={false} // 優先度を下げる
+  loading="lazy"   // 遅延読み込み
+/>
+```
+
+### 動的インポートの活用
+
+```typescript
+// ✅ 推奨: 重いコンポーネントの遅延読み込み
+const HeavyChart = dynamic(() => import('./HeavyChart'), {
+  loading: () => <div>読み込み中...</div>,
+  ssr: false // サーバーサイドレンダリングを無効化
+});
+```
+
+## 8. エラーハンドリング (軽量化)
+
+### 軽量なエラーハンドリング
+
+```typescript
+// ✅ 推奨: 軽量なエラーハンドリング
+export async function GET(request: Request) {
+  try {
+    const data = await fetchLightweightData(); // 軽量処理
+    
+    return NextResponse.json(data);
+  } catch (error) {
+    // 軽量なエラーレスポンス
+    return NextResponse.json(
+      { error: 'Data fetch failed' },
       { status: 500 }
     );
   }
 }
 ```
 
-### クライアントサイドでのユーザーデータ操作
+## 9. 型安全性 (軽量化)
 
-- `fetch` を使用して API を呼び出し
-- エラーハンドリングとローディング状態の管理:
-- ServerActionsでも可
+### 軽量な型定義
 
 ```typescript
-// components/articles/create-article.tsx
-"use client";
+// types/index.ts
+// 必要最小限の型定義
+export interface LiftData {
+  id: string;
+  name: string;
+  status: 'open' | 'closed' | 'maintenance';
+  updated_at: string;
+}
 
-export async function createArticle(data: ArticleData) {
-  try {
-    const response = await fetch("/api/articles", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+// 軽量なAPI レスポンス型
+export interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+}
+```
 
-    if (!response.ok) {
-      throw new Error("API request failed");
+## 10. セキュリティ (軽量化)
+
+### 軽量なバリデーション
+
+```typescript
+// lib/validation.ts
+// 軽量なバリデーション
+export function validateLiftId(liftId: string): boolean {
+  return typeof liftId === 'string' && liftId.length > 0;
+}
+
+export function validateStatus(status: string): boolean {
+  return ['open', 'closed', 'maintenance'].includes(status);
+}
+```
+
+## 11. テスト戦略 (軽量化)
+
+### 軽量なテスト
+
+```typescript
+// __tests__/components/ResortCard.test.tsx
+import { render, screen } from '@testing-library/react';
+import ResortCard from '@/components/ResortCard';
+
+describe('ResortCard', () => {
+  it('リゾート情報を表示する', () => {
+    const mockData = {
+      id: '1',
+      name: 'テストリゾート',
+      status: 'open'
+    };
+    
+    render(<ResortCard data={mockData} />);
+    
+    expect(screen.getByText('テストリゾート')).toBeInTheDocument();
+  });
+});
+```
+
+## 12. デプロイメント (軽量化)
+
+### CloudFlare Workers 設定
+
+```toml
+# wrangler.toml
+name = "lift-timeline"
+main = "functions/_worker.ts"
+compatibility_date = "2024-01-01"
+
+# 無料枠設定
+[env.production]
+name = "lift-timeline-prod"
+
+# 軽量化設定
+[build]
+command = "npm run build"
+```
+
+### 環境変数管理
+
+```bash
+# 必要最小限の環境変数
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+## 13. パフォーマンス監視 (10ms制限対応)
+
+### CPU時間監視
+
+```typescript
+// lib/performance.ts
+export function measureExecutionTime<T>(
+  fn: () => Promise<T>
+): Promise<{ result: T; executionTime: number }> {
+  const start = performance.now();
+  
+  return fn().then(result => {
+    const executionTime = performance.now() - start;
+    
+    // 10ms制限の警告
+    if (executionTime > 8) { // 8msで警告
+      console.warn(`Slow execution: ${executionTime.toFixed(2)}ms`);
     }
+    
+    return { result, executionTime };
+  });
+}
+```
 
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating article:", error);
-    throw error;
+### 軽量なログ
+
+```typescript
+// lib/logging.ts
+export function logPerformance(operation: string, time: number) {
+  // 軽量なログ出力
+  if (time > 5) { // 5ms以上の場合のみログ
+    console.log(`${operation}: ${time.toFixed(2)}ms`);
   }
 }
 ```
 
-### キャッシュと再検証
-- サーバー側でのキャッシュは使用しない
-- デフォルトでキャッシュを活用
-- 適切な再検証戦略を選択:
-- ISRは使用しない
+## 14. 開発ワークフロー (軽量化)
 
-```typescript
-// キャッシュを無効化する場合
-fetch(url, { cache: "no-store" });
+### 開発環境
+
+```bash
+# 軽量な開発サーバー
+npm run dev
+
+# CloudFlare Workers ローカル開発
+wrangler dev --local
+
+# 軽量なビルド
+npm run build
 ```
 
-### エラーハンドリング
-
-- API レスポンスには適切なステータスコードとエラーメッセージを含める
-- クライアントサイドでは適切なエラーハンドリングとユーザーフィードバックを実装
-- try-catch ブロックを使用して例外を適切に処理
-
-### セキュリティ
-
-- API ルートでは適切な認証・認可チェックを実装
-- 入力値のバリデーションを実施、特にサーバーサイドでのバリデーション
-- レートリミットの実装を検討
-
-## 4. パフォーマンス最適化
-
-### 画像最適化
-
-- `next/image`コンポーネントを使用
-
-```typescript
-import Image from "next/image";
-
-<Image
-  src="/path/to/image.jpg"
-  alt="説明"
-  width={800}
-  height={600}
-  priority={true} // 重要な画像の場合
-/>;
-```
-
-### スクリプト最適化
-
-- `next/script`を使用して外部スクリプトを最適化
-
-```typescript
-import Script from "next/script";
-
-<Script src="https://example.com/script.js" strategy="lazyOnload" />;
-```
-
-## 5. エラーハンドリング
-
-### エラーバウンダリ
-
-- `error.tsx`ファイルでエラーをキャッチ
-- ユーザーフレンドリーなエラーメッセージを表示
-
-### ローディング状態
-
-- `loading.tsx`でローディング状態を管理
-- Suspense を使用して細かい粒度でローディングを制御
-
-## 6. 型安全性
-
-### TypeScript
-
-- 厳格な型チェックを有効化
+### コード品質
 
 ```json
+// .eslintrc.json
 {
-  "compilerOptions": {
-    "strict": true,
-    "forceConsistentCasingInFileNames": true
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "no-console": "warn",
+    "prefer-const": "error"
   }
 }
 ```
 
-### API ルート
+---
 
-- リクエスト/レスポンスの型を定義
+## 重要な注意事項 (10ms制限対応)
 
-```typescript
-type ResponseData = {
-  message: string;
-};
-```
+### 🚨 絶対に避けるべき処理
+- **複数のデータベースクエリの並列実行**
+- **大量データの一括処理**
+- **複雑な計算処理**
+- **重い外部API呼び出し**
 
-## 7. セキュリティ
+### ✅ 推奨する実装パターン
+- **1リクエスト = 1データフェッチ**
+- **必要最小限のデータ取得**
+- **積極的なキャッシュ活用**
+- **ページ分割による負荷分散**
+- **軽量なクエリの使用**
 
-### 環境変数
+### 📊 パフォーマンス目標
+- **データフェッチ: 2-3ms以内**
+- **API処理: 5ms以内**
+- **全体処理: 8ms以内**
+- **バッファ: 2ms**
 
-- 機密情報は`.env`に保存
-- 公開する環境変数は`NEXT_PUBLIC_`プレフィックスを使用
+### 🔧 最適化の優先順位
+1. **データフェッチの最小化**
+2. **クエリの最適化**
+3. **キャッシュの活用**
+4. **コードの軽量化**
+5. **並列処理の回避**
 
-### CSP (Content Security Policy)
-
-- 適切な CSP ヘッダーを設定
-- `next.config.js`でセキュリティヘッダーを構成
-
-## 8. デプロイメント
-
-### ビルド最適化
-
-- 本番環境では常に本番ビルドを使用
-- 適切なキャッシュ戦略を実装
-
-### 環境変数
-
-- 環境ごとに適切な環境変数を設定
-- 本番環境の環境変数は安全に管理
-
-## 10. メンテナンス
-
-### 依存関係
-
-- 定期的に依存パッケージを更新
-- セキュリティ脆弱性をモニタリング
-
-### パフォーマンスモニタリング
-
-- Core Web Vitals を定期的に確認
-- エラーログを監視
+この最適化により、CloudFlare Workersの無料枠（10ms制限）内で効率的に動作するアプリケーションを構築できます。
