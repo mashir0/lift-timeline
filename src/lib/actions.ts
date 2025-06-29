@@ -1,37 +1,18 @@
 'use server'
-import { fetchOneDayLiftLogs } from './supabaseDto';
-import { getCachedResortLogs, setCachedResortLogs } from './cache';
-import { measureExecutionTime } from './performance';
-import type { OneDayLiftLogs } from '@/types';
+import { fetchResortLiftLogs } from './supabaseDto';
+import type { DBLiftStatusView } from '@/types';
 
 export async function getResortLiftLogs(
   resortId: number, 
   date: string
-): Promise<OneDayLiftLogs> {
+): Promise<DBLiftStatusView[]> {
   try {
-    // キャッシュから取得を試行
-    const cached = await getCachedResortLogs(resortId, date);
-    if (cached) {
-      return cached;
-    }
+    // リゾート単位で一括取得（生データ、処理はクライアント側で実行）
+    const logs = await fetchResortLiftLogs(resortId, date);
     
-    // キャッシュミスの場合、データベースから取得
-    const result = await measureExecutionTime(
-      () => fetchOneDayLiftLogs(resortId, date),
-      `getResortLiftLogs-${resortId}-${date}`
-    );
-    
-    // 取得したデータをキャッシュに保存
-    await setCachedResortLogs(resortId, date, result.result);
-    
-    // 実行時間の監視
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Resort ${resortId} logs fetched in ${result.executionTime.toFixed(2)}ms`);
-    }
-    
-    return result.result;
+    return logs;
   } catch (error) {
-    console.error(`Error fetching lift logs for resort ${resortId}:`, error);
-    return { liftLogs: {}, hours: [] };
+    console.error(`Error fetching resort lift logs for resort ${resortId}:`, error);
+    return [];
   }
 } 

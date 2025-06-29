@@ -1,7 +1,9 @@
 import { ResortCard } from '@/components/ResortCard';
 import { getResortLiftLogs } from '@/lib/actions';
 import { getSegmentsAndGroups } from '@/lib/getSegmentsAndGroups';
-import type { LiftSegmentsByLiftId } from '@/types';
+import { removeDuplicateLiftLogs } from '@/lib/dataProcessing';
+import { logPerformance } from '@/lib/performance';
+import type { LiftSegmentsByLiftId, DBLiftStatusView } from '@/types';
 
 // ✅ 個別リゾートのタイムライン（Server Component）
 export async function ResortTimeline({ 
@@ -17,20 +19,38 @@ export async function ResortTimeline({
   mode: 'daily' | 'weekly';
   dateStr: string;
 }) {
-  // 1つのリゾートのログのみ取得
-  const logs = await getResortLiftLogs(resortId, dateStr);
+  const startTime = performance.now();
   
-  if (!logs || Object.keys(logs.liftLogs).length === 0) {
+  // リゾート単位で一括取得（生データ）
+  const rawLogs = await getResortLiftLogs(resortId, dateStr);
+  
+  // クライアント側での処理時間計測
+  const fetchTime = performance.now() - startTime;
+  logPerformance(`Resort ${resortId} fetch`, fetchTime);
+  
+  if (!rawLogs || rawLogs.length === 0) {
     return null;
   }
   
+  // クライアント側でのリフトごとの振り分け処理
+  const processStart = performance.now();
+  const processedLifts = processResortLifts(rawLogs, lifts);
+  const processTime = performance.now() - processStart;
+  logPerformance(`Resort ${resortId} processing`, processTime);
+
+  // セグメント変換処理（既存ロジックをそのまま使用）
+  const segmentStart = performance.now();
   const liftSegments: LiftSegmentsByLiftId = {};
+  const hours = extractHours(rawLogs);
   
-  for (const [liftId, liftLogs] of Object.entries(logs.liftLogs)) {
+  for (const [liftId, liftLogs] of Object.entries(processedLifts)) {
     if (liftLogs && Array.isArray(liftLogs)) {
-      liftSegments[Number(liftId)] = getSegmentsAndGroups(liftLogs, logs.hours);
+      liftSegments[Number(liftId)] = getSegmentsAndGroups(liftLogs, hours);
     }
   }
+  
+  const segmentTime = performance.now() - segmentStart;
+  logPerformance(`Resort ${resortId} segments`, segmentTime);
 
   return (
     <ResortCard
@@ -38,7 +58,42 @@ export async function ResortTimeline({
       lifts={lifts}
       mode={mode}
       liftLogs={liftSegments}
-      hours={logs.hours}
+      hours={hours}
     />
   );
+}
+
+// クライアント側でのリフトごとの振り分け処理
+function processResortLifts(
+  rawLogs: DBLiftStatusView[], 
+  lifts: Record<number, { name: string; start_time: string; end_time: string }>
+) {
+  const processedLifts: Record<number, any[]> = {};
+  
+  // 各リフトに対して処理を実行
+  Object.entries(lifts).forEach(([liftId, liftInfo]) => {
+    const liftIdNum = parseInt(liftId);
+    
+    // リフトIDでフィルタリング（生データから取得）
+    const rawLiftLogs = rawLogs.filter(log => log.lift_id === liftIdNum);
+    
+    // 連続する同じステータスを削除する関数を実行
+    const processedLogs = removeDuplicateLiftLogs(rawLiftLogs);
+    
+    processedLifts[liftIdNum] = processedLogs;
+  });
+  
+  return processedLifts;
+}
+
+// 時間の抽出（既存ロジックを参考）
+function extractHours(rawLogs: DBLiftStatusView[]): number[] {
+  const hours = new Set<number>();
+  
+  for (const log of rawLogs) {
+    const hour = new Date(log.created_at).getHours();
+    hours.add(hour);
+  }
+  
+  return Array.from(hours).sort((a, b) => a - b);
 } 

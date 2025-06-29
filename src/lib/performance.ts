@@ -19,11 +19,37 @@ export function measureExecutionTime<T>(
   });
 }
 
+// ✅ 推奨: クライアント側パフォーマンス計測
+export function measureClientPerformance<T>(
+  operationName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startTime = performance.now();
+  
+  return fn().then(result => {
+    const executionTime = performance.now() - startTime;
+    
+    // Console.logによる軽量な計測
+    console.log(`⏱️ ${operationName}: ${executionTime.toFixed(2)}ms`);
+    
+    // 閾値チェック
+    if (executionTime > 1000) {
+      console.warn(`🐌 Slow operation: ${operationName} took ${executionTime.toFixed(2)}ms`);
+    } else if (executionTime > 500) {
+      console.info(`⚠️ Moderate operation: ${operationName} took ${executionTime.toFixed(2)}ms`);
+    }
+    
+    return result;
+  }).catch(error => {
+    const executionTime = performance.now() - startTime;
+    console.error(`❌ Error in ${operationName} after ${executionTime.toFixed(2)}ms:`, error);
+    throw error;
+  });
+}
+
 // 軽量なログ
-export function logPerformance(operation: string, time: number) {
-  if (time > 5) { // 5ms以上の場合のみログ
-    console.log(`${operation}: ${time.toFixed(2)}ms`);
-  }
+export function logPerformance(operation: string, time: number, details?: any) {
+  console.log(`📊 ${operation}: ${time.toFixed(2)}ms`, details || '');
 }
 
 // パフォーマンス監視クラス

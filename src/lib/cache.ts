@@ -75,4 +75,41 @@ export async function clearCache(pattern?: string): Promise<void> {
   } catch (error) {
     console.error(`Error clearing cache:`, error);
   }
+}
+
+// ✅ 推奨: クライアント側キャッシュ
+export function getClientCache<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+    
+    const { data, timestamp } = JSON.parse(cached);
+    const now = Date.now();
+    
+    // 5分のキャッシュ有効期限
+    if (now - timestamp > 5 * 60 * 1000) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    console.log(`✅ Cache hit: ${key}`);
+    return data;
+  } catch (error) {
+    console.error('Cache get error:', error);
+    return null;
+  }
+}
+
+export function setClientCache<T>(key: string, data: T): void {
+  try {
+    const entry = {
+      data,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(key, JSON.stringify(entry));
+    console.log(`💾 Cached: ${key}`);
+  } catch (error) {
+    console.error('Cache set error:', error);
+  }
 } 
