@@ -1,3 +1,4 @@
+'use server'
 import { fetchTable, insertTable } from './supabase';
 import { DBLiftStatusView, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto } from '@/types';
 import dayjs from '@/util/dayjs';
@@ -288,17 +289,17 @@ export async function fetchResortLiftLogs(
   const fromDate = dayjs.tz(date, 'Asia/Tokyo').toDate();
   const toDate = dayjs.tz(date, 'Asia/Tokyo').add(1, 'day').toDate();
   
-  // リゾートの全リフトログを一括取得（生データ）
-  const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
-    resort_id: resortId,
-    created_at: { gte: fromDate, lt: toDate } 
-  });
-
-  if (!data) {
+  try {
+    // リゾートの全リフトログを一括取得（生データ）
+    const data = await fetchTable<DBLiftStatusView>('lift_status_view', {
+      resort_id: resortId,
+      created_at: { gte: fromDate, lt: toDate } 
+    });
+    return data;
+  } catch (error) {
+    console.error(`Error fetching resort lift logs for resort ${resortId}:`, error);
     return [];
   }
-  
-  return data;
 }
 
 /* ------------------------------------------------------------

@@ -2,7 +2,6 @@ import { ResortCard } from '@/components/ResortCard';
 import { getResortLiftLogs } from '@/lib/actions';
 import { getSegmentsAndGroups } from '@/lib/getSegmentsAndGroups';
 import { removeDuplicateLiftLogs } from '@/lib/dataProcessing';
-import { logPerformance } from '@/lib/performance';
 import type { LiftSegmentsByLiftId, DBLiftStatusView } from '@/types';
 
 // ✅ 個別リゾートのタイムライン（Server Component）
@@ -25,8 +24,7 @@ export async function ResortTimeline({
   const rawLogs = await getResortLiftLogs(resortId, dateStr);
   
   // クライアント側での処理時間計測
-  const fetchTime = performance.now() - startTime;
-  logPerformance(`Resort ${resortId} fetch`, fetchTime);
+  const fetchTime = Number((performance.now() - startTime).toFixed(2)).toString().padStart(7, ' ');
   
   if (!rawLogs || rawLogs.length === 0) {
     return null;
@@ -35,8 +33,7 @@ export async function ResortTimeline({
   // クライアント側でのリフトごとの振り分け処理
   const processStart = performance.now();
   const processedLifts = processResortLifts(rawLogs, lifts);
-  const processTime = performance.now() - processStart;
-  logPerformance(`Resort ${resortId} processing`, processTime);
+  const processTime = Number((performance.now() - processStart).toFixed(2)).toString().padStart(7, ' ');
 
   // セグメント変換処理（既存ロジックをそのまま使用）
   const segmentStart = performance.now();
@@ -49,8 +46,8 @@ export async function ResortTimeline({
     }
   }
   
-  const segmentTime = performance.now() - segmentStart;
-  logPerformance(`Resort ${resortId} segments`, segmentTime);
+  const segmentTime = Number((performance.now() - segmentStart).toFixed(2)).toString().padStart(7, ' ');
+  console.log(`${resortId}:${resort.name.substring(0, 2)} fetch:${fetchTime}ms, proc:${processTime}ms, segment:${segmentTime}ms`);
 
   return (
     <ResortCard

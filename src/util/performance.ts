@@ -1,73 +1,90 @@
-interface PerformanceMetrics {
-  startTime: number;
-  endTime: number;
-  duration: number;
+// ✅ 推奨: CPU時間監視
+export function measureExecutionTime<T>(
+  fn: () => Promise<T>,
+  operationName: string
+): Promise<{ result: T; executionTime: number }> {
+  const start = performance.now();
+  
+  return fn().then(result => {
+    const executionTime = performance.now() - start;
+    
+    // 10ms制限の警告
+    if (executionTime > 8) { // 8msで警告
+      console.warn(`Slow execution in ${operationName}: ${executionTime.toFixed(2)}ms`);
+    } else if (executionTime > 5) { // 5ms以上の場合のみログ
+      console.info(`Moderate execution in ${operationName}: ${executionTime.toFixed(2)}ms`);
+    }
+    
+    return { result, executionTime };
+  });
 }
 
-class PerformanceMonitor {
-  private static metrics: Map<string, PerformanceMetrics[]> = new Map();
-
-  /**
-   * パフォーマンス計測を開始します
-   * @param label 計測の識別子
-   * @returns 開始時間
-   */
-  static start(label: string): number {
-    const startTime = performance.now();
-    if (!this.metrics.has(label)) {
-      this.metrics.set(label, []);
+// ✅ 推奨: クライアント側パフォーマンス計測
+export function measureClientPerformance<T>(
+  operationName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startTime = performance.now();
+  
+  return fn().then(result => {
+    const executionTime = performance.now() - startTime;
+    
+    // Console.logによる軽量な計測
+    console.log(`⏱️ ${operationName}: ${executionTime.toFixed(2)}ms`);
+    
+    // 閾値チェック
+    if (executionTime > 1000) {
+      console.warn(`🐌 Slow operation: ${operationName} took ${executionTime.toFixed(2)}ms`);
+    } else if (executionTime > 500) {
+      console.info(`⚠️ Moderate operation: ${operationName} took ${executionTime.toFixed(2)}ms`);
     }
-    this.metrics.get(label)?.push({ startTime, endTime: 0, duration: 0 });
-    return startTime;
-  }
-
-  /**
-   * パフォーマンス計測を終了し、結果を記録します
-   * @param label 計測の識別子
-   * @returns 計測結果
-   */
-  static end(label: string): PerformanceMetrics {
-    const endTime = performance.now();
-    const metrics = this.metrics.get(label);
-    if (!metrics || metrics.length === 0) {
-      throw new Error(`No performance measurement started for label: ${label}`);
-    }
-
-    const currentMetric = metrics[metrics.length - 1];
-    currentMetric.endTime = endTime;
-    currentMetric.duration = Number((endTime - currentMetric.startTime).toFixed(2));
-
-    return currentMetric;
-  }
-
-  /**
-   * 特定のラベルの計測結果を取得します
-   * @param label 計測の識別子
-   * @returns 計測結果の配列
-   */
-  static getMetrics(label: string): PerformanceMetrics[] {
-    return this.metrics.get(label) || [];
-  }
-
-  /**
-   * すべての計測結果を取得します
-   * @returns すべての計測結果
-   */
-  static getAllMetrics(): Map<string, PerformanceMetrics[]> {
-    return this.metrics;
-  }
-
-  /**
-   * 計測結果をクリアします
-   * @param label 計測の識別子（指定しない場合はすべてクリア）
-   */
-  static clear(label?: string): void {
-    if (label) {
-      this.metrics.delete(label);
-    } else {
-      this.metrics.clear();
-    }
-  }
+    
+    return result;
+  }).catch(error => {
+    const executionTime = performance.now() - startTime;
+    console.error(`❌ Error in ${operationName} after ${executionTime.toFixed(2)}ms:`, error);
+    throw error;
+  });
 }
 
-export default PerformanceMonitor; 
+// 軽量なログ
+export function logPerformance(operation: string, time: number, details?: any) {
+  console.log(`📊 ${operation}: ${time.toFixed(2)}ms`, details || '');
+}
+
+// パフォーマンス監視クラス
+export class PerformanceMonitor {
+  private static measurements: Map<string, { start: number; end?: number }> = new Map();
+
+  static start(operationName: string): void {
+    this.measurements.set(operationName, { start: performance.now() });
+  }
+
+  static end(operationName: string): { duration: number; operationName: string } | null {
+    const measurement = this.measurements.get(operationName);
+    if (!measurement) {
+      console.warn(`No measurement found for operation: ${operationName}`);
+      return null;
+    }
+
+    measurement.end = performance.now();
+    const duration = measurement.end - measurement.start;
+
+    // 10ms制限の監視
+    if (duration > 8) {
+      console.warn(`⚠️ Slow operation detected: ${operationName} took ${duration.toFixed(2)}ms`);
+    } else if (duration > 5) {
+      console.info(`ℹ️ Moderate operation: ${operationName} took ${duration.toFixed(2)}ms`);
+    }
+
+    this.measurements.delete(operationName);
+    return { duration, operationName };
+  }
+
+  static getCurrentMeasurement(operationName: string): number | null {
+    const measurement = this.measurements.get(operationName);
+    if (!measurement) return null;
+    
+    return performance.now() - measurement.start;
+  }
+} 
