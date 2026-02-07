@@ -6,9 +6,9 @@ import { updateAllLiftStatuses } from "../src/lib/scheduledTasks";
 export default {
   fetch: handler.fetch,
   async scheduled(
-    _event: ScheduledEvent,
-    _env: unknown,
-    ctx: ExecutionContext
+    _event: unknown, 
+    _env: unknown, 
+    ctx: { waitUntil: (p: Promise<unknown>) => void }
   ) {
     ctx.waitUntil(updateAllLiftStatuses());
   },
