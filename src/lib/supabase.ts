@@ -134,7 +134,7 @@ export const insertTable = async <T extends Record<string, unknown>>(table: stri
 
   const { error } = await supabase
     .from(table)
-    .insert(data);
+    .insert(data as any);
 
   if (error) {
     console.error('Error inserting data:', error);
