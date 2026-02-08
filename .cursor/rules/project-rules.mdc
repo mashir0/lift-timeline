@@ -1,0 +1,690 @@
+# プロジェクトルール
+
+本プロジェクト（lift-timeline）の開発における必須ルールとベストプラクティスを定義します。
+
+---
+
+## 1. 実装前の必須手順
+
+### doc 配下の参照
+
+**実装を始める前に、必ず `./doc` 配下を参照し、参照したファイル名を読み上げること。**
+
+`./doc` 配下の主なファイル：
+- `doc/requirements.md` — 要件定義、優先度、タスク一覧
+- `doc/progress.md` — 開発進捗、タスク状況の管理
+
+**例：**
+「`doc/requirements.md` と `doc/progress.md` を参照しました。認証機能の実装を開始します。」
+
+---
+
+## 2. Next.js 15.5.12 + Cloudflare Workers (Paid) のベストプラクティス
+
+### 2.1 スタック概要
+
+- **Next.js**: 15.5.12（App Router、React 19 対応）
+- **デプロイ先**: Cloudflare Workers（Paid plan）
+- **アダプター**: `@opennextjs/cloudflare` を使用
+
+### 2.2 ルーティングとファイル構造
+
+#### ディレクトリ構造
+
+```
+src/
+├── app/                    # App Router のルート
+│   ├── (routes)/          # ルートグループ
+│   ├── api/               # API Route Handlers
+│   ├── page.tsx           # ページコンポーネント
+│   ├── layout.tsx         # レイアウトコンポーネント
+│   ├── loading.tsx        # ローディング状態
+│   ├── error.tsx          # エラーバウンダリ
+│   └── not-found.tsx      # 404 ページ
+├── components/            # React コンポーネント
+│   ├── ui/               # UI コンポーネント
+│   └── features/         # 機能別コンポーネント
+├── lib/                   # ユーティリティ関数
+├── types/                 # TypeScript 型定義
+└── public/                # 静的アセット
+```
+
+#### 命名規則
+
+- ページ: `page.tsx`
+- レイアウト: `layout.tsx`
+- ローディング: `loading.tsx`
+- エラー: `error.tsx`
+- 404: `not-found.tsx`
+- テンプレート: `template.tsx`
+- デフォルト: `default.tsx`
+
+### 2.3 コンポーネント設計
+
+#### Server Components（デフォルト）
+
+- **デフォルトで Server Components を使用**
+- データフェッチングは Server Components で実装
+- SEO が必要なコンポーネントは Server Components
+- サーバーサイドでのみ実行されるため、ブラウザ API は使用不可
+
+```typescript
+// ✅ GOOD: Server Component
+export default async function Page() {
+  const data = await fetchData();
+  return <div>{data}</div>;
+}
+```
+
+#### Client Components（必要な場合のみ）
+
+以下の場合のみ `'use client'` を使用：
+
+- ブラウザ API（`window`, `document`, `localStorage` など）
+- イベントリスナー（`onClick`, `onChange` など）
+- React Hooks（`useState`, `useEffect`, `useContext` など）
+- クライアントサイドの状態管理
+- インタラクティブな UI（フォーム、アニメーションなど）
+
+```typescript
+// ✅ GOOD: Client Component（必要な場合のみ）
+'use client';
+
+import { useState } from 'react';
+
+export default function InteractiveComponent() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+```
+
+### 2.4 データフェッチング
+
+#### Server Components でのデータ取得（推奨）
+
+- **データフェッチは Server Components で行う**
+- `fetch` API を使用（Next.js が自動的にキャッシュを最適化）
+- データベースクエリは Server Components または Server Actions で実行
+
+```typescript
+// ✅ GOOD: Server Component でのデータ取得
+export default async function Page() {
+  const data = await fetch('https://api.example.com/data', {
+    next: { revalidate: 3600 }, // ISR: 1時間ごとに再検証
+  });
+  const json = await data.json();
+  return <div>{json.content}</div>;
+}
+```
+
+#### API Routes（必要な場合のみ）
+
+- **GET リクエスト用の API Route は作成しない**（Server Components で代替）
+- API Routes は以下の場合のみ作成：
+  - POST/PATCH/PUT/DELETE などの書き込み操作
+  - 外部 API のプロキシ（認証が必要な場合）
+  - Webhook エンドポイント
+
+```typescript
+// ✅ GOOD: POST リクエスト用の API Route
+// app/api/articles/route.ts
+import { NextResponse } from 'next/server';
+
+export async function POST(request: Request) {
+  const data = await request.json();
+  // データベースへの保存処理
+  return NextResponse.json({ success: true }, { status: 201 });
+}
+```
+
+#### Server Actions（推奨）
+
+- フォーム送信やデータ更新には Server Actions を使用
+- `'use server'` ディレクティブでマーク
+
+```typescript
+// ✅ GOOD: Server Action
+'use server';
+
+export async function createArticle(formData: FormData) {
+  const title = formData.get('title');
+  // データベースへの保存処理
+  revalidatePath('/articles');
+  redirect('/articles');
+}
+```
+
+### 2.5 キャッシュ戦略
+
+#### Next.js のキャッシュ機能
+
+- **デフォルトで `fetch` は自動キャッシュされる**
+- `cache: 'no-store'` でキャッシュを無効化
+- `next.revalidate` で ISR（Incremental Static Regeneration）を設定
+
+```typescript
+// キャッシュあり（デフォルト）
+const data = await fetch('https://api.example.com/data');
+
+// キャッシュなし
+const data = await fetch('https://api.example.com/data', {
+  cache: 'no-store',
+});
+
+// ISR: 1時間ごとに再検証
+const data = await fetch('https://api.example.com/data', {
+  next: { revalidate: 3600 },
+});
+```
+
+#### Cloudflare Workers でのキャッシュ
+
+- **R2 を Incremental Cache として利用可能**（`open-next.config.ts` で設定）
+- Cloudflare の CDN キャッシュも自動的に活用される
+- `revalidatePath()` や `revalidateTag()` でキャッシュを無効化
+
+### 2.6 パフォーマンス最適化
+
+#### 画像最適化
+
+- `next/image` コンポーネントを使用
+- Cloudflare Images との統合を検討
+
+```typescript
+import Image from 'next/image';
+
+<Image
+  src="/path/to/image.jpg"
+  alt="説明"
+  width={800}
+  height={600}
+  priority={true} // 重要な画像の場合
+/>
+```
+
+#### コード分割と動的インポート
+
+- 大きなコンポーネントは動的インポートで遅延読み込み
+
+```typescript
+import dynamic from 'next/dynamic';
+
+const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+  loading: () => <p>読み込み中...</p>,
+});
+```
+
+#### Suspense の活用
+
+- データフェッチのローディング状態を `Suspense` で管理
+
+```typescript
+import { Suspense } from 'react';
+
+export default function Page() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DataComponent />
+    </Suspense>
+  );
+}
+```
+
+### 2.7 エラーハンドリング
+
+#### エラーバウンダリ
+
+- `error.tsx` でエラーをキャッチ
+- ユーザーフレンドリーなエラーメッセージを表示
+
+```typescript
+// app/error.tsx
+'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <h2>エラーが発生しました</h2>
+      <button onClick={() => reset()}>再試行</button>
+    </div>
+  );
+}
+```
+
+#### ローディング状態
+
+- `loading.tsx` でローディング状態を管理
+- Suspense と組み合わせて細かい粒度で制御
+
+### 2.8 ビルドとデプロイ
+
+#### ビルドコマンド
+
+```bash
+# ローカルビルド
+npm run cf:build
+
+# プレビュー
+npm run preview
+
+# デプロイ（Git 連携）
+git push origin main
+```
+
+#### 環境変数
+
+- **Cloudflare Workers での環境変数設定**：
+  - `wrangler.toml` の `[vars]` セクション
+  - Cloudflare ダッシュボードでの設定
+  - 本番環境は `[env.production.vars]` またはダッシュボードで上書き
+
+```toml
+# wrangler.toml
+[vars]
+NEXT_PUBLIC_API_URL = "https://api.example.com"
+
+[env.production.vars]
+NEXT_PUBLIC_API_URL = "https://api.production.com"
+```
+
+#### Git 連携
+
+- `git push origin main` で Cloudflare が自動的にビルド・デプロイを実行
+
+### 2.9 型安全性
+
+- TypeScript の `strict` モードを有効化
+- API ルートのリクエスト/レスポンスの型を定義
+- Server Actions の引数・戻り値の型を明示
+
+```typescript
+// types/api.ts
+export type CreateArticleRequest = {
+  title: string;
+  content: string;
+};
+
+export type CreateArticleResponse = {
+  id: string;
+  title: string;
+  createdAt: string;
+};
+```
+
+### 2.10 セキュリティ
+
+#### 環境変数
+
+- 機密情報は `.env.local` に保存（Git にコミットしない）
+- 公開する環境変数は `NEXT_PUBLIC_` プレフィックスを使用
+- Cloudflare Workers では `wrangler.toml` とダッシュボードで管理
+
+#### セキュリティヘッダー
+
+- `next.config.js` でセキュリティヘッダーを設定
+- Cloudflare のセキュリティ機能も活用
+
+---
+
+## 3. Supabase のベストプラクティス
+
+### 3.1 クライアントの初期化
+
+#### Server Components での Supabase クライアント
+
+- **`@supabase/ssr` パッケージを使用**（推奨）
+- Server Components では `createServerClient` を使用
+- Edge Runtime では `persistSession: false` を設定
+
+```typescript
+// lib/supabase/server.ts
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+export async function createClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Server Component では cookie の書き込みができない場合がある
+          }
+        },
+      },
+    }
+  );
+}
+```
+
+#### Client Components での Supabase クライアント
+
+- `createBrowserClient` を使用
+
+```typescript
+// lib/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr';
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+```
+
+#### Middleware でのセッション管理
+
+- **Middleware は必須**（Server Components では cookie の書き込みができないため）
+- セッションのリフレッシュを Middleware で処理
+
+```typescript
+// middleware.ts
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // セッションをリフレッシュ
+  await supabase.auth.getUser();
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
+```
+
+### 3.2 認証の実装
+
+#### Server Components での認証チェック
+
+```typescript
+// app/dashboard/page.tsx
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  return <div>ダッシュボード</div>;
+}
+```
+
+#### Server Actions での認証チェック
+
+```typescript
+// app/actions/article.ts
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+
+export async function createArticle(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('認証が必要です');
+  }
+
+  // 記事作成処理
+  const { data, error } = await supabase
+    .from('articles')
+    .insert({
+      title: formData.get('title'),
+      content: formData.get('content'),
+      user_id: user.id,
+    });
+
+  if (error) throw error;
+
+  revalidatePath('/articles');
+  return { success: true };
+}
+```
+
+### 3.3 データベースクエリ
+
+#### Server Components でのデータ取得
+
+```typescript
+// app/articles/page.tsx
+import { createClient } from '@/lib/supabase/server';
+
+export default async function ArticlesPage() {
+  const supabase = await createClient();
+
+  const { data: articles, error } = await supabase
+    .from('articles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error('記事の取得に失敗しました');
+  }
+
+  return (
+    <div>
+      {articles.map((article) => (
+        <div key={article.id}>{article.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### Row Level Security (RLS) の活用
+
+- **RLS を必ず有効化**
+- テーブルごとに適切なポリシーを設定
+- 認証ユーザーのみアクセス可能なデータは RLS で保護
+
+```sql
+-- 例: ユーザーは自分の記事のみ閲覧可能
+CREATE POLICY "Users can view their own articles"
+ON articles
+FOR SELECT
+USING (auth.uid() = user_id);
+```
+
+### 3.4 リアルタイム機能
+
+#### リアルタイムサブスクリプション（Client Components のみ）
+
+```typescript
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+
+export function RealtimeArticles() {
+  const [articles, setArticles] = useState([]);
+  const supabase = createClient();
+
+  useEffect(() => {
+    // 初期データ取得
+    supabase
+      .from('articles')
+      .select('*')
+      .then(({ data }) => setArticles(data || []));
+
+    // リアルタイムサブスクリプション
+    const channel = supabase
+      .channel('articles')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'articles',
+        },
+        (payload) => {
+          // データ更新処理
+          console.log('Change received!', payload);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return <div>{/* 記事一覧 */}</div>;
+}
+```
+
+### 3.5 エラーハンドリング
+
+#### 適切なエラーハンドリング
+
+```typescript
+const { data, error } = await supabase
+  .from('articles')
+  .select('*');
+
+if (error) {
+  console.error('Supabase error:', error);
+  // ユーザーフレンドリーなエラーメッセージを表示
+  throw new Error('データの取得に失敗しました');
+}
+
+// data が null の場合も考慮
+if (!data) {
+  return [];
+}
+
+return data;
+```
+
+### 3.6 パフォーマンス最適化
+
+#### 必要なカラムのみ取得
+
+```typescript
+// ❌ BAD: 全カラムを取得
+const { data } = await supabase.from('articles').select('*');
+
+// ✅ GOOD: 必要なカラムのみ取得
+const { data } = await supabase
+  .from('articles')
+  .select('id, title, created_at');
+```
+
+#### ページネーション
+
+```typescript
+const { data } = await supabase
+  .from('articles')
+  .select('*')
+  .range(0, 9); // 最初の10件
+```
+
+#### インデックスの活用
+
+- よく検索されるカラムにインデックスを設定
+- 複合インデックスも検討
+
+### 3.7 環境変数
+
+#### 必要な環境変数
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+- `NEXT_PUBLIC_` プレフィックスでクライアントサイドでも利用可能
+- サーバーサイドのみで使用する場合は `SUPABASE_SERVICE_ROLE_KEY` を使用（注意：RLS をバイパスするため慎重に使用）
+
+---
+
+## 4. 開発フロー
+
+### 4.1 実装前の確認事項
+
+1. ✅ `./doc` 配下を参照し、参照したファイル名を読み上げる
+2. ✅ 要件定義と進捗状況を確認
+3. ✅ 既存の類似機能がないか確認（重複実装の防止）
+4. ✅ 実装方針を決定
+
+### 4.2 実装時の注意事項
+
+- Server Components を優先的に使用
+- 必要な場合のみ Client Components を使用
+- API Routes は POST/PATCH/PUT/DELETE のみ
+- 適切なエラーハンドリングを実装
+- 型安全性を確保
+
+### 4.3 実装後の確認事項
+
+- 動作確認
+- エラーハンドリングの確認
+- パフォーマンスの確認
+- セキュリティの確認
+
+---
+
+## 5. 参考資料
+
+- [Next.js 15 Documentation](https://nextjs.org/docs)
+- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Supabase Auth with Next.js App Router](https://supabase.com/docs/guides/auth/auth-helpers/nextjs)
