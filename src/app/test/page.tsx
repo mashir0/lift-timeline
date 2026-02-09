@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { updateAllLiftStatuses } from '@/lib/scheduledTasks';
 
 type TestResult = {
   success: boolean;
@@ -25,8 +24,12 @@ export default function TestPage() {
       setLoading(true);
       setError(null);
       
-      // 直接関数を呼び出し - APIなし
-      const testResult = await updateAllLiftStatuses();
+      // API Route を経由して呼び出し
+      const response = await fetch('/api/update-lift-statuses');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const testResult = await response.json();
       setResult(testResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
