@@ -1,81 +1,140 @@
-import { getAllResorts, getAllLifts } from '@/lib/supabaseDto';
-import { TimelinePage } from '@/components/TimelinePage';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Header } from '@/components/Header';
+import { TimelineControls } from '@/components/TimelineControls';
+import { Legend } from '@/components/Legend';
+import { ResortCardFetcher } from '@/components/ResortCardFetcher';
 import dayjs from '@/util/dayjs';
-import { redirect } from 'next/navigation';
+import type { ResortsDto, LiftsDto } from '@/types';
 
-// ISR設定は Cloudflare Pages では使用できないため削除
-// export const revalidate = 300;
+export default function Home() {
+  const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
+  const todayStr = today.format('YYYY-MM-DD');
 
-const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
-const todayStr = today.format('YYYY-MM-DD');
+  const [dateStr, setDateStr] = useState(todayStr);
+  const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
+  const [resorts, setResorts] = useState<ResortsDto | null>(null);
+  const [lifts, setLifts] = useState<LiftsDto | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function Home(props: {
-  searchParams: Promise<{ date?: string; mode?: string }>;
-}) {
-  const searchParams = await props.searchParams;
-  const dateParam = searchParams.date as string | undefined;
-  const modeParam = (searchParams.mode as 'daily' | 'weekly' | undefined) ?? 'daily';
-  const mode = modeParam === 'weekly' ? 'weekly' : 'daily';
+  // 初期データ取得
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        console.log('Environment check:', {
+          url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        });
 
-  // 初回アクセス（date 未指定）または日付不正時は本日・現在の mode でリダイレクト
-  const redirectToToday = () => redirect(`/?date=${todayStr}&mode=${mode}`);
+        const supabase = createClient();
 
-  if (!dateParam) {
-    redirectToToday();
-  }
+        const [resortsResult, liftsResult] = await Promise.all([
+          supabase.from('ski_resorts').select('*'),
+          supabase.from('lifts').select('*'),
+        ]);
 
-  const date = dayjs.tz(dateParam, 'UTC').tz('Asia/Tokyo');
-  if (!date.isValid()) {
-    redirectToToday();
-  }
+        if (resortsResult.error || liftsResult.error) {
+          console.error('Supabase error details:', {
+            resortsError: resortsResult.error,
+            liftsError: liftsResult.error,
+          });
+          setLoading(false);
+          return;
+        }
 
-  const dateStr = date.format('YYYY-MM-DD');
-  const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo');
-  const canGoPrevious = date.tz('Asia/Tokyo').isAfter(sevenDaysAgo);
-  const canGoNext = date.tz('Asia/Tokyo').isBefore(today.tz('Asia/Tokyo'));
+        // データをオブジェクト形式に変換
+        const resortsData: ResortsDto = {};
+        resortsResult.data?.forEach((resort: any) => {
+          resortsData[resort.id] = resort;
+        });
 
-  const prevDateStr = date.subtract(1, 'day').format('YYYY-MM-DD');
-  const nextDateStr = date.add(1, 'day').format('YYYY-MM-DD');
-  const prevUrl = `/?date=${prevDateStr}&mode=${mode}`;
-  const nextUrl = `/?date=${nextDateStr}&mode=${mode}`;
-  const todayUrl = `/?date=${todayStr}&mode=${mode}`;
-  const dailyUrl = `/?date=${dateStr}&mode=daily`;
-  const weeklyUrl = `/?date=${dateStr}&mode=weekly`;
+        const liftsData: LiftsDto = {};
+        liftsResult.data?.forEach((lift: any) => {
+          if (!liftsData[lift.resort_id]) {
+            liftsData[lift.resort_id] = {};
+          }
+          liftsData[lift.resort_id][lift.id] = lift;
+        });
 
-  const lastUpdated = new Date();
+        setResorts(resortsData);
+        setLifts(liftsData);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching initial data:', err);
+        console.error('Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          fullError: err,
+        });
+        setLoading(false);
+      }
+    };
 
-  try {
-    const [resorts, lifts] = await Promise.all([
-      getAllResorts(),
-      getAllLifts(),
-    ]);
+    fetchInitialData();
+  }, []);
 
-    const resortIds = Object.keys(resorts);
+  const handleDateChange = (newDate: string) => {
+    setDateStr(newDate);
+  };
 
+  const handleModeChange = (newMode: 'daily' | 'weekly') => {
+    setMode(newMode);
+  };
+
+  if (loading || !resorts || !lifts) {
     return (
-      <TimelinePage
-        resortIds={resortIds}
-        resorts={resorts}
-        lifts={lifts}
-        dateStr={dateStr}
-        mode={mode}
-        todayStr={todayStr}
-        prevUrl={prevUrl}
-        nextUrl={nextUrl}
-        todayUrl={todayUrl}
-        dailyUrl={dailyUrl}
-        weeklyUrl={weeklyUrl}
-        canGoPrevious={canGoPrevious}
-        canGoNext={canGoNext}
-        lastUpdated={lastUpdated}
-      />
-    );
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    return (
-      <div>
-        <h1>Error</h1>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
       </div>
     );
   }
+
+  const resortIds = Object.keys(resorts);
+  const date = dayjs.tz(dateStr, 'UTC').tz('Asia/Tokyo');
+  const sevenDaysAgo = today.subtract(6, 'day');
+  const canGoPrevious = date.isAfter(sevenDaysAgo);
+  const canGoNext = date.isBefore(today);
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Header lastUpdated={new Date()} />
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <TimelineControls
+          mode={mode}
+          dateStr={dateStr}
+          todayStr={todayStr}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onDateChange={handleDateChange}
+          onModeChange={handleModeChange}
+        />
+        {resortIds.length === 0 ? (
+          <div className="flex justify-center items-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {resortIds.map((id) => (
+              <ResortCardFetcher
+                key={`${id}-${dateStr}-${mode}`}
+                resortId={id}
+                dateStr={dateStr}
+                mode={mode}
+                resort={resorts[Number(id)]}
+                lifts={lifts[Number(id)]}
+              />
+            ))}
+          </div>
+        )}
+        <div className="mt-6">
+          <Legend mode={mode} />
+        </div>
+      </main>
+    </div>
+  );
 }

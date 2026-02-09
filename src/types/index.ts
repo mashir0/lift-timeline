@@ -114,7 +114,7 @@ export type liftStatus = {
 
 
 // 1日分の1リゾート内の全リフト運行ログ
-// SupabaseDtoから Page.tsx->TimelinePage.tsx に渡す型
+// SupabaseDtoから Page.tsx に渡す型
 export type OneDayLiftLogs = {
   liftLogs: { [liftId: number]: liftStatus[] };
   hours: number[];

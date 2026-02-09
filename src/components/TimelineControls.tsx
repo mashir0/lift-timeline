@@ -1,4 +1,5 @@
-import Link from 'next/link';
+'use client';
+
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import dayjs from '@/util/dayjs';
 
@@ -6,28 +7,36 @@ type TimelineControlsProps = {
   mode: 'daily' | 'weekly';
   dateStr: string;
   todayStr: string;
-  prevUrl: string;
-  nextUrl: string;
-  todayUrl: string;
-  dailyUrl: string;
-  weeklyUrl: string;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  onDateChange: (newDate: string) => void;
+  onModeChange: (newMode: 'daily' | 'weekly') => void;
 };
 
 export function TimelineControls({
   mode,
   dateStr,
   todayStr,
-  prevUrl,
-  nextUrl,
-  todayUrl,
-  dailyUrl,
-  weeklyUrl,
   canGoPrevious,
   canGoNext,
+  onDateChange,
+  onModeChange,
 }: TimelineControlsProps) {
   const currentDate = dayjs.tz(dateStr, 'UTC').tz('Asia/Tokyo');
+  
+  const handlePrevious = () => {
+    const prevDate = currentDate.subtract(1, 'day').format('YYYY-MM-DD');
+    onDateChange(prevDate);
+  };
+  
+  const handleNext = () => {
+    const nextDate = currentDate.add(1, 'day').format('YYYY-MM-DD');
+    onDateChange(nextDate);
+  };
+  
+  const handleToday = () => {
+    onDateChange(todayStr);
+  };
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
@@ -40,47 +49,31 @@ export function TimelineControls({
         <div className="flex items-center gap-4">
           {mode === 'daily' && (
             <div className="flex items-center gap-2">
-              {canGoPrevious ? (
-                <Link
-                  href={prevUrl}
-                  className="p-2 rounded-xl hover:bg-gray-100"
-                >
-                  <ChevronLeftIcon className="w-5 h-5" />
-                </Link>
-              ) : (
-                <span
-                  className="p-2 rounded-xl opacity-50 cursor-not-allowed"
-                  aria-disabled
-                >
-                  <ChevronLeftIcon className="w-5 h-5" />
-                </span>
-              )}
-              <Link
-                href={todayUrl}
+              <button
+                onClick={handlePrevious}
+                disabled={!canGoPrevious}
+                className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleToday}
                 className="px-4 py-2 rounded-xl hover:bg-gray-100"
               >
                 今日
-              </Link>
-              {canGoNext ? (
-                <Link
-                  href={nextUrl}
-                  className="p-2 rounded-xl hover:bg-gray-100"
-                >
-                  <ChevronRightIcon className="w-5 h-5" />
-                </Link>
-              ) : (
-                <span
-                  className="p-2 rounded-xl opacity-50 cursor-not-allowed"
-                  aria-disabled
-                >
-                  <ChevronRightIcon className="w-5 h-5" />
-                </span>
-              )}
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={!canGoNext}
+                className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
             </div>
           )}
           <div className="flex rounded-lg border border-gray-200">
-            <Link
-              href={dailyUrl}
+            <button
+              onClick={() => onModeChange('daily')}
               className={`px-4 py-2 text-sm rounded-l-lg ${
                 mode === 'daily'
                   ? 'bg-blue-100 text-blue-700'
@@ -88,9 +81,9 @@ export function TimelineControls({
               }`}
             >
               日次表示
-            </Link>
-            <Link
-              href={weeklyUrl}
+            </button>
+            <button
+              onClick={() => onModeChange('weekly')}
               className={`px-4 py-2 text-sm rounded-r-lg ${
                 mode === 'weekly'
                   ? 'bg-blue-100 text-blue-700'
@@ -98,7 +91,7 @@ export function TimelineControls({
               }`}
             >
               週次表示
-            </Link>
+            </button>
           </div>
         </div>
       </div>
