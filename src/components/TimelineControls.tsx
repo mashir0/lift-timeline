@@ -1,31 +1,33 @@
-import React from 'react';
+import Link from 'next/link';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import type { Dayjs } from 'dayjs';
+import dayjs from '@/util/dayjs';
 
 type TimelineControlsProps = {
   mode: 'daily' | 'weekly';
-  today: Dayjs;
-  currentDate: Dayjs;
-  onToday: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onModeChange: (mode: 'daily' | 'weekly') => void;
+  dateStr: string;
+  todayStr: string;
+  prevUrl: string;
+  nextUrl: string;
+  todayUrl: string;
+  dailyUrl: string;
+  weeklyUrl: string;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
 };
 
 export function TimelineControls({
   mode,
-  today,
-  currentDate,
-  onToday,
-  onPrevious,
-  onNext,
-  onModeChange,
+  dateStr,
+  todayStr,
+  prevUrl,
+  nextUrl,
+  todayUrl,
+  dailyUrl,
+  weeklyUrl,
+  canGoPrevious,
+  canGoNext,
 }: TimelineControlsProps) {
-  const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo')
-  
-  // ボタンの有効/無効を判定
-  const canGoPrevious = currentDate.tz('Asia/Tokyo').isAfter(sevenDaysAgo)
-  const canGoNext = currentDate.tz('Asia/Tokyo').isBefore(today.tz('Asia/Tokyo'))
+  const currentDate = dayjs.tz(dateStr, 'UTC').tz('Asia/Tokyo');
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
@@ -35,44 +37,50 @@ export function TimelineControls({
             {currentDate.format('YYYY年MM月DD日')}
           </h2>
         </div>
-        
         <div className="flex items-center gap-4">
           {mode === 'daily' && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={onPrevious}
-                disabled={!canGoPrevious}
-                className={`p-2 rounded-xl ${
-                  canGoPrevious 
-                    ? 'hover:bg-gray-100' 
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
+              {canGoPrevious ? (
+                <Link
+                  href={prevUrl}
+                  className="p-2 rounded-xl hover:bg-gray-100"
+                >
+                  <ChevronLeftIcon className="w-5 h-5" />
+                </Link>
+              ) : (
+                <span
+                  className="p-2 rounded-xl opacity-50 cursor-not-allowed"
+                  aria-disabled
+                >
+                  <ChevronLeftIcon className="w-5 h-5" />
+                </span>
+              )}
+              <Link
+                href={todayUrl}
+                className="px-4 py-2 rounded-xl hover:bg-gray-100"
               >
-                <ChevronLeftIcon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={onToday}
-                className={`px-4 py-2 rounded-xl`}
-              >
-                今日 
-              </button>
-              <button
-                onClick={onNext}
-                disabled={!canGoNext}
-                className={`p-2 rounded-xl ${
-                  canGoNext 
-                    ? 'hover:bg-gray-100' 
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <ChevronRightIcon className="w-5 h-5" />
-              </button>
+                今日
+              </Link>
+              {canGoNext ? (
+                <Link
+                  href={nextUrl}
+                  className="p-2 rounded-xl hover:bg-gray-100"
+                >
+                  <ChevronRightIcon className="w-5 h-5" />
+                </Link>
+              ) : (
+                <span
+                  className="p-2 rounded-xl opacity-50 cursor-not-allowed"
+                  aria-disabled
+                >
+                  <ChevronRightIcon className="w-5 h-5" />
+                </span>
+              )}
             </div>
           )}
-          
           <div className="flex rounded-lg border border-gray-200">
-            <button
-              onClick={() => onModeChange('daily')}
+            <Link
+              href={dailyUrl}
               className={`px-4 py-2 text-sm rounded-l-lg ${
                 mode === 'daily'
                   ? 'bg-blue-100 text-blue-700'
@@ -80,9 +88,9 @@ export function TimelineControls({
               }`}
             >
               日次表示
-            </button>
-            <button
-              onClick={() => onModeChange('weekly')}
+            </Link>
+            <Link
+              href={weeklyUrl}
               className={`px-4 py-2 text-sm rounded-r-lg ${
                 mode === 'weekly'
                   ? 'bg-blue-100 text-blue-700'
@@ -90,7 +98,7 @@ export function TimelineControls({
               }`}
             >
               週次表示
-            </button>
+            </Link>
           </div>
         </div>
       </div>

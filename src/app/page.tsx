@@ -1,9 +1,7 @@
 import { getAllResorts, getAllLifts } from '@/lib/supabaseDto';
 import { TimelinePage } from '@/components/TimelinePage';
-import type { OneDayLiftLogs } from '@/types';
 import dayjs from '@/util/dayjs';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
 
 // ISR設定は Cloudflare Pages では使用できないため削除
 // export const revalidate = 300;
@@ -11,89 +9,69 @@ import { headers } from 'next/headers';
 const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
 const todayStr = today.format('YYYY-MM-DD');
 
-// バッチサイズを定義（同時実行数を制限）
-const BATCH_SIZE = 2;
-
-export default async function Home(props: { searchParams: Promise<{ date?: string }>}) {
+export default async function Home(props: {
+  searchParams: Promise<{ date?: string; mode?: string }>;
+}) {
   const searchParams = await props.searchParams;
-  // 日付パラメータがない場合は本日の日付にリダイレクト
   const dateParam = searchParams.date as string | undefined;
+  const modeParam = (searchParams.mode as 'daily' | 'weekly' | undefined) ?? 'daily';
+  const mode = modeParam === 'weekly' ? 'weekly' : 'daily';
+
+  // 初回アクセス（date 未指定）または日付不正時は本日・現在の mode でリダイレクト
+  const redirectToToday = () => redirect(`/?date=${todayStr}&mode=${mode}`);
+
   if (!dateParam) {
-    redirect(`/?date=${todayStr}`);
+    redirectToToday();
   }
 
-  // 日付のバリデーション
-  const date = dayjs.tz(dateParam,'UTC').tz('Asia/Tokyo');
+  const date = dayjs.tz(dateParam, 'UTC').tz('Asia/Tokyo');
   if (!date.isValid()) {
-    redirect(`/?date=${todayStr}`);
+    redirectToToday();
   }
 
   const dateStr = date.format('YYYY-MM-DD');
+  const sevenDaysAgo = today.subtract(6, 'day').tz('Asia/Tokyo');
+  const canGoPrevious = date.tz('Asia/Tokyo').isAfter(sevenDaysAgo);
+  const canGoNext = date.tz('Asia/Tokyo').isBefore(today.tz('Asia/Tokyo'));
+
+  const prevDateStr = date.subtract(1, 'day').format('YYYY-MM-DD');
+  const nextDateStr = date.add(1, 'day').format('YYYY-MM-DD');
+  const prevUrl = `/?date=${prevDateStr}&mode=${mode}`;
+  const nextUrl = `/?date=${nextDateStr}&mode=${mode}`;
+  const todayUrl = `/?date=${todayStr}&mode=${mode}`;
+  const dailyUrl = `/?date=${dateStr}&mode=daily`;
+  const weeklyUrl = `/?date=${dateStr}&mode=weekly`;
+
+  const lastUpdated = new Date();
 
   try {
-    // 1. 基本情報の取得
     const [resorts, lifts] = await Promise.all([
       getAllResorts(),
-      getAllLifts()
+      getAllLifts(),
     ]);
-    
-    // 2. リゾートごとにリフトログデータを取得
+
     const resortIds = Object.keys(resorts);
-    const logs: { [resrotId: number]: OneDayLiftLogs } = {};
-    
-    // 現在のリクエストのヘッダーからホスト情報を取得
-    const headersList = await headers();
-    const host = headersList.get('host') || 'localhost:3000';
-    const protocol = 'http'; // 開発環境では常にhttpを使用
-    const baseUrl = `${protocol}://${host}`;
-    
-    // バッチ処理でリクエストを制限
-    for (let i = 0; i < resortIds.length; i += BATCH_SIZE) {
-      const batch = resortIds.slice(i, i + BATCH_SIZE);
-      const batchPromises = batch.map(async (resortId) => {
-        try {
-          const response = await fetch( `${baseUrl}/api/lift-logs/${resortId}?date=${dateStr}`, { 
-              method: 'GET',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          if (!response.ok) {
-            console.error(`Failed to fetch logs for resort ${resortId}`);
-            return null;
-          }
-          const data = await response.json();
-          return { resortId, data };
-        } catch (error) {
-          console.error(`Error fetching logs for resort ${resortId}:`, error);
-          return null;
-        }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
-      
-      // バッチの結果を処理
-      batchResults.forEach(result => {
-        if (result && Object.keys(result.data.liftLogs).length > 0) {
-          logs[Number(result.resortId)] = result.data
-        }
-      });
-    }
-    
-  return (
-      <TimelinePage 
-        resorts={resorts} 
-        lifts={lifts} 
-        logs={logs} 
-        todayString={todayStr}
-        isLoading={false}
+
+    return (
+      <TimelinePage
+        resortIds={resortIds}
+        resorts={resorts}
+        lifts={lifts}
+        dateStr={dateStr}
+        mode={mode}
+        todayStr={todayStr}
+        prevUrl={prevUrl}
+        nextUrl={nextUrl}
+        todayUrl={todayUrl}
+        dailyUrl={dailyUrl}
+        weeklyUrl={weeklyUrl}
+        canGoPrevious={canGoPrevious}
+        canGoNext={canGoNext}
+        lastUpdated={lastUpdated}
       />
     );
   } catch (error) {
     console.error('Error fetching data:', error);
-    // エラー時のフォールバックUIを表示
     return (
       <div>
         <h1>Error</h1>
