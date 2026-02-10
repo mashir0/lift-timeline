@@ -2,10 +2,11 @@
 import { default as handler } from "../.open-next/worker.js";
 import { updateAllLiftStatuses } from "../src/lib/scheduledTasks";
 
-/** CRON 実行時に Supabase 等の環境変数を受け取るための型 */
+/** CRON 実行時に Supabase / Yukiyama API 等の環境変数を受け取るための型 */
 interface CronEnv {
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+  NEXT_PUBLIC_YUKIYAMA_API?: string;
 }
 
 const worker = {

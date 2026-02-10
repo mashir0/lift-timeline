@@ -2,10 +2,11 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-/** CRON 用に Worker の env から渡される Supabase 設定（オプション） */
+/** CRON 用に Worker の env から渡される設定（オプション） */
 export type SupabaseEnv = {
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+  NEXT_PUBLIC_YUKIYAMA_API?: string;
 };
 
 /**

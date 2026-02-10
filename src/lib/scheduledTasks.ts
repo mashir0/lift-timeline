@@ -42,10 +42,11 @@ export async function updateAllLiftStatuses(env?: SupabaseEnv): Promise<UpdateRe
     const resortsEntries = Object.entries(resorts);
     
     // Step 1: すべてのリゾートからAPIデータを取得する
+    const yukiyamaApiUrl = env?.NEXT_PUBLIC_YUKIYAMA_API;
     for (const [id, resort] of resortsEntries) {
       try {
         console.log(`スキー場ID ${id} (${resort.name}) のリフト情報を取得中...`);
-        const statuses = await fetchYukiyamaApi(id);
+        const statuses = await fetchYukiyamaApi(id, yukiyamaApiUrl);
         console.log(`スキー場ID ${id} のリフト情報を ${statuses.length}件取得しました。`);
         
         // 取得したデータをすぐに保存せず、一時配列に追加
