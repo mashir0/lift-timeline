@@ -29,12 +29,13 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
     setTooltip(null);
   }, []);
 
-  // liftLogsが存在しない場合は何も表示しない
-  if (!liftLogs || !hours) {
+  if (!lifts || Object.keys(lifts).length === 0) {
     return null;
   }
 
-  const availableHours = hours;
+  const availableHours = hours ?? [];
+  const hasAnyData = availableHours.length > 0 && liftLogs && Object.keys(liftLogs).length > 0;
+  const liftEntries = Object.entries(lifts).sort(([a], [b]) => Number(a) - Number(b));
 
   return (
     <>
@@ -61,39 +62,54 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
         <div className="w-full" ref={timelineRef}>
           {mode === 'daily' ? (
             <div className="w-full">
-              {/* レスポンシブな時間軸ヘッダー */}
-              <div className="flex flex-col md:grid md:grid-cols-[120px_1fr] mb-2 overflow-visible">
-                <div className="text-xs text-gray-400 hidden md:block">リフト名</div>
-                <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${availableHours.length}, 1fr)` }}>
-                  {availableHours.map((hour) => (
-                    <div key={hour} className="text-sm text-gray-500 text-left">
-                      <span className="hidden md:inline">{hour}:00</span>
-                      <span className="md:hidden">
-                        {availableHours.length <= 6 || hour % 2 === 1 ? `${hour}:00` : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* リフトごとのタイムライン */}
-              <div className="space-y-4 w-full">
-                {Object.entries(liftLogs).map(([liftId, liftSegments]) => (
-                  <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full">
-                    <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
-                      <span className="truncate cursor-help"
-                        onMouseEnter={(e) => showTooltip(e, lifts[Number(liftId)].name)}
-                        onMouseLeave={hideTooltip}
-                      >
-                        {lifts[Number(liftId)].name}
-                      </span>
-                    </div>
-
-                    <div className="relative h-6 w-full">
-                      <StatusBar liftSegments={liftSegments} />
+              {hasAnyData && (
+                <>
+                  {/* レスポンシブな時間軸ヘッダー */}
+                  <div className="flex flex-col md:grid md:grid-cols-[120px_1fr] mb-2 overflow-visible">
+                    <div className="text-xs text-gray-400 hidden md:block">リフト名</div>
+                    <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${availableHours.length}, 1fr)` }}>
+                      {availableHours.map((hour) => (
+                        <div key={hour} className="text-sm text-gray-500 text-left">
+                          <span className="hidden md:inline">{hour}:00</span>
+                          <span className="md:hidden">
+                            {availableHours.length <= 6 || hour % 2 === 1 ? `${hour}:00` : ''}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                </>
+              )}
+
+              {/* リフトごとのタイムライン（全リフトを列挙し、データがないリフトは「データがありません」を表示） */}
+              <div className="space-y-4 w-full">
+                {liftEntries.map(([liftId, liftInfo]) => {
+                  const segments = liftLogs?.[Number(liftId)];
+                  const hasData = segments && segments.length > 0;
+                  return (
+                    <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full">
+                      <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
+                        <span
+                          className="truncate cursor-help"
+                          onMouseEnter={(e) => showTooltip(e, liftInfo.name)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          {liftInfo.name}
+                        </span>
+                      </div>
+
+                      {hasData ? (
+                        <div className="relative h-6 w-full">
+                          <StatusBar liftSegments={segments} />
+                        </div>
+                      ) : (
+                        <div className="flex items-center h-6 w-full text-sm text-gray-500">
+                          データがありません
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : (

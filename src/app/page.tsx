@@ -9,6 +9,22 @@ import { ResortCardFetcher } from '@/components/ResortCardFetcher';
 import dayjs from '@/util/dayjs';
 import type { ResortsDto, LiftsDto } from '@/types';
 
+const DATE_STR_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 選択日付が不正・範囲外・未来で、全ゲレンデでリフト情報が無い状態か */
+function isDateWithNoLiftData(
+  dateStr: string,
+  today: dayjs.Dayjs,
+  sevenDaysAgo: dayjs.Dayjs
+): boolean {
+  if (!DATE_STR_REGEX.test(dateStr)) return true;
+  const date = dayjs.tz(dateStr, 'Asia/Tokyo').startOf('day');
+  if (!date.isValid()) return true;
+  if (date.isAfter(today)) return true; // 未来
+  if (date.isBefore(sevenDaysAgo)) return true; // 範囲外（過去）
+  return false;
+}
+
 export default function Home() {
   const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
   const todayStr = today.format('YYYY-MM-DD');
@@ -99,6 +115,7 @@ export default function Home() {
   const sevenDaysAgo = today.subtract(6, 'day');
   const canGoPrevious = date.isAfter(sevenDaysAgo);
   const canGoNext = date.isBefore(today);
+  const noLiftDataForAnyResort = isDateWithNoLiftData(dateStr, today, sevenDaysAgo);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -113,7 +130,11 @@ export default function Home() {
           onDateChange={handleDateChange}
           onModeChange={handleModeChange}
         />
-        {resortIds.length === 0 ? (
+        {noLiftDataForAnyResort ? (
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-8 text-center text-gray-600">
+            リフト情報がありません
+          </div>
+        ) : resortIds.length === 0 ? (
           <div className="flex justify-center items-center min-h-[400px]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
           </div>

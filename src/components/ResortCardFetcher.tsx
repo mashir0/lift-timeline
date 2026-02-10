@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import { ResortCard } from './ResortCard';
 import { ResortCardSkeleton } from './ResortCardSkeleton';
-import { fetchResortLiftLogs } from '@/app/actions/fetchResortLiftLogs';
-import type { ResortsDto, LiftsDto, LiftSegmentsByLiftId } from '@/types';
+import {
+  fetchResortLiftLogs,
+  type FetchResortLiftLogsResult,
+} from '@/app/actions/fetchResortLiftLogs';
+import type { ResortsDto, LiftsDto } from '@/types';
 
 type ResortCardFetcherProps = {
   resortId: string;
@@ -21,26 +24,23 @@ export function ResortCardFetcher({
   resort,
   lifts,
 }: ResortCardFetcherProps) {
-  const [data, setData] = useState<{
-    liftSegments: LiftSegmentsByLiftId;
-    hours: number[];
-  } | null>(null);
+  const [result, setResult] = useState<FetchResortLiftLogsResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setData(null);
+    setResult(null);
 
     const loadData = async () => {
       try {
-        const result = await fetchResortLiftLogs(Number(resortId), dateStr);
+        const res = await fetchResortLiftLogs(Number(resortId), dateStr);
         if (cancelled) return;
-        setData(result);
+        setResult(res);
       } catch (err) {
         if (!cancelled) {
           console.error('Error fetching resort data:', err);
-          setData(null);
+          setResult({ ok: false, reason: 'error', message: '読み込みに失敗しました' });
         }
       } finally {
         if (!cancelled) {
@@ -57,15 +57,33 @@ export function ResortCardFetcher({
   }, [resortId, dateStr]);
 
   if (loading) return <ResortCardSkeleton />;
-  if (!data) return null;
+  if (!result) return null;
+
+  if (result.ok === false && result.reason === 'no_data') {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-4 w-full">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{resort.name}</h3>
+        <p className="text-sm text-gray-600">リフト情報がありません</p>
+      </div>
+    );
+  }
+
+  if (result.ok === false && result.reason === 'error') {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-4 w-full">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{resort.name}</h3>
+        <p className="text-sm text-red-600">読み込みに失敗しました: {result.message}</p>
+      </div>
+    );
+  }
 
   return (
     <ResortCard
       mode={mode}
       resort={resort}
       lifts={lifts}
-      liftLogs={data.liftSegments}
-      hours={data.hours}
+      liftLogs={result.liftSegments}
+      hours={result.hours}
     />
   );
 }
