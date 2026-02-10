@@ -1,3 +1,4 @@
+import { createServiceClient } from '@/lib/supabase/server';
 import { saveToLiftStatus } from './supabase';
 import { getAllResorts } from './supabaseDto';
 import { fetchYukiyamaApi } from './yukiyama';
@@ -20,8 +21,9 @@ interface UpdateResponce {
 
 export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
   try {
-    // スキー場情報を取得（共通モジュールから）
-    const resorts = await getAllResorts();
+    // CRON 専用: リクエストスコープがないため cookies() を使わないサービス用クライアントを使用
+    const supabase = createServiceClient();
+    const resorts = await getAllResorts(supabase);
     
     if (Object.keys(resorts).length === 0) {
       console.warn('データベースにスキー場情報が見つかりませんでした。');
@@ -73,7 +75,7 @@ export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
     // Step 2: 全データを一括で保存
     if (allStatusData.length > 0) {
       try {
-        const saveResult = await saveToLiftStatus(allStatusData);
+        const saveResult = await saveToLiftStatus(allStatusData, supabase);
         console.log(`一括保存完了: ${saveResult.message}`);
       } catch (dbError) {
         // DB保存エラー

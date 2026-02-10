@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { DBQuery, DBLiftStatus, YukiyamaResponse } from '@/types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // 並び順とページネーションのオプション型
 export type FetchOptions = {
@@ -16,13 +17,15 @@ export type FetchOptions = {
  ******************************************/
 
 // テーブルからデータを取得する関数
+// client 省略時は createClient() を使用（リクエストスコープ）。CRON 等では createServiceClient() を渡す。
 export const fetchTable = async <T>(
   table: string, 
   query: DBQuery = {}, 
   options: FetchOptions = {},
   limit: number = 1000,
+  client?: SupabaseClient,
 ): Promise<T[]> => {
-  const supabase = await createClient();
+  const supabase = client ?? await createClient();
 
   // クエリパラメータを分離
   const { resort_id, created_at } = query;
@@ -89,8 +92,13 @@ export const fetchTable = async <T>(
 };
 
 // テーブルにデータを保存する関数
-export const insertTable = async <T extends Record<string, unknown>>(table: string, data: T[]): Promise<void> => {
-  const supabase = await createClient();
+// client 省略時は createClient() を使用。CRON 等では createServiceClient() を渡す。
+export const insertTable = async <T extends Record<string, unknown>>(
+  table: string,
+  data: T[],
+  client?: SupabaseClient,
+): Promise<void> => {
+  const supabase = client ?? await createClient();
 
   const { error } = await supabase
     .from(table)
@@ -106,7 +114,11 @@ export const insertTable = async <T extends Record<string, unknown>>(table: stri
 * DBに保存する関数
 ******************************************/
 // リフトステータスの保存関数(API->DB.lift_status)
-export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise<{ success: boolean; message: string }> => {
+// client 省略時は createClient() を使用。CRON 等では createServiceClient() を渡す。
+export const saveToLiftStatus = async (
+  apiResponse: YukiyamaResponse[],
+  client?: SupabaseClient,
+): Promise<{ success: boolean; message: string }> => {
   if (!apiResponse || apiResponse.length === 0) {
     return {
       success: false,
@@ -115,14 +127,16 @@ export const saveToLiftStatus = async (apiResponse: YukiyamaResponse[]): Promise
   }
 
   try {
-    await insertTable<DBLiftStatus>('lift_status', 
+    await insertTable<DBLiftStatus>(
+      'lift_status',
       apiResponse.map((res) => ({
         lift_id: res.id,
         comment: res.comment,
         status: res.status,
         groomed: res.groomed,
         status_updated: new Date(res.updateDate),
-      }))
+      })),
+      client,
     );
     
     return {

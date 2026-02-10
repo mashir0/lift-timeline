@@ -1,5 +1,6 @@
 import { fetchTable, insertTable } from './supabase';
 import { DBLiftStatusView, OneDayLiftLogs, DBResort, DBLiftStatus, YukiyamaResponse, DBLift, ResortsDto, LiftsDto, liftStatus, LiftSegment, LiftSegmentsByLiftId, OperationStatus } from '@/types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import dayjs from '@/util/dayjs';
 import { ONE_SEGMENT_MINUTES } from './constants';
 import PerformanceMonitor from '@/util/performance';
@@ -7,8 +8,8 @@ import PerformanceMonitor from '@/util/performance';
 /* ------------------------------------------------------------
  * スキー場一覧の取得
  * ------------------------------------------------------------ */
-export async function getAllResorts(): Promise<ResortsDto> {
-  const resorts = await fetchTable<DBResort>('ski_resorts');
+export async function getAllResorts(client?: SupabaseClient): Promise<ResortsDto> {
+  const resorts = await fetchTable<DBResort>('ski_resorts', {}, {}, 1000, client);
   return resorts.reduce((acc, resort) => ({
     ...acc,
     [resort.id]: {
