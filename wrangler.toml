@@ -2,10 +2,7 @@
 name = "lift-timeline"
 main = "workers/worker.ts"
 compatibility_date = "2024-12-01"
-compatibility_flags = [
-  "nodejs_compat",
-  "global_fetch_strictly_public"
-]
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
 # アセット設定
 [assets]

@@ -1,7 +1,8 @@
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, type SupabaseEnv } from '@/lib/supabase/server';
 import { saveToLiftStatus } from './supabase';
 import { getAllResorts } from './supabaseDto';
 import { fetchYukiyamaApi } from './yukiyama';
+
 /**
  * すべてのスキー場のリフト情報を更新する
  * Cloudflare CRONから直接実行される
@@ -19,10 +20,10 @@ interface UpdateResponce {
 }
 
 
-export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
+export async function updateAllLiftStatuses(env?: SupabaseEnv): Promise<UpdateResponce> {
   try {
     // CRON 専用: リクエストスコープがないため cookies() を使わないサービス用クライアントを使用
-    const supabase = createServiceClient();
+    const supabase = createServiceClient(env);
     const resorts = await getAllResorts(supabase);
     
     if (Object.keys(resorts).length === 0) {
