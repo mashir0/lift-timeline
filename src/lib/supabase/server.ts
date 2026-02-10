@@ -1,39 +1,53 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 /**
- * Server Components 用の Supabase クライアントを作成
- * 
+ * リクエストスコープ外（CRON 等）で使う Cookie なしの Supabase クライアント
+ */
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error('Supabase environment variables are missing');
+  return createSupabaseClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * Server Components / API Routes 用の Supabase クライアントを作成。
+ * リクエストスコープ外（Worker CRON 等）の場合は Cookie を使わないクライアントにフォールバックする。
+ *
  * @returns Supabase クライアントインスタンス
- * 
- * 【将来の拡張ポイント】
- * - Middleware を追加する際は、そちらでセッションのリフレッシュを行う
- * - 認証機能を追加する際は、このクライアントで supabase.auth.getUser() を使用可能
  */
 export async function createClient() {
-  const cookieStore = await cookies();
+  try {
+    const cookieStore = await cookies();
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Server Component では cookie の書き込みができない場合がある
+            }
+          },
         },
-        setAll(cookiesToSet) {
-          // 現時点では認証なしのため、エラーハンドリングのみ
-          // Server Component では cookie の書き込みができない場合がある
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch (error) {
-            // Cookie の書き込みに失敗した場合は無視
-            // 注意: Middleware を追加する際は、そちらで適切に処理する必要がある
-          }
-        },
-      },
+      }
+    );
+  } catch (error) {
+    // リクエストスコープ外（CRON 等）では cookies() が使えないため、Cookie なしクライアントにフォールバック
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('outside a request scope') || message.includes('cookies')) {
+      return createServiceClient();
     }
-  );
+    throw error;
+  }
 }

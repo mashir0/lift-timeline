@@ -10,6 +10,8 @@ on:
 jobs:
   update-lift-statuses:
     runs-on: ubuntu-latest
+    env:
+      API_URL: https://lift-timeline.am0701.workers.dev
     container:
       image: alpine:3.18
     # 高速化のための設定
@@ -29,8 +31,9 @@ jobs:
           
           # 一時ファイルにレスポンスを保存
           RESPONSE_FILE="/tmp/api_response.txt"
+          BASE_URL="${{ env.API_URL }}"
           HTTP_STATUS=$(curl -s -o $RESPONSE_FILE -w "%{http_code}" \
-            -X GET "https://lift-timeline.pages.dev/api/update-lift-statuses" \
+            -X GET "${BASE_URL}/api/update-lift-statuses" \
             -H "Content-Type: application/json" \
             --retry 3 \
             --retry-delay 5 \
