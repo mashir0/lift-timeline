@@ -18,7 +18,7 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         const leftRadius = segment.startIndex === 0 || segment.status !== prevSegment?.status ? '8px' : '0';
         const rightRadius = liftSegments.length === groupIndex + 1 || segment.status !== nextSegment?.status ? '8px' : '0';
         const borderRadius = `${leftRadius} ${rightRadius} ${rightRadius} ${leftRadius}`;
-        
+
         // 幅に応じてテキスト表示を判断（レスポンシブ対応）
         const shouldShowText = segment.count >= 3;
 
@@ -41,7 +41,7 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
                 {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
               </span>
             )}
-            
+
             {/* Tailwind CSSのみを使用したツールチップ */}
             <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800/80 text-white text-xs rounded whitespace-nowrap z-50 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
               {tooltipText}

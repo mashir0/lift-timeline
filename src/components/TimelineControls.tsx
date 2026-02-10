@@ -23,17 +23,17 @@ export function TimelineControls({
   onModeChange,
 }: TimelineControlsProps) {
   const currentDate = dayjs.tz(dateStr, 'UTC').tz('Asia/Tokyo');
-  
+
   const handlePrevious = () => {
     const prevDate = currentDate.subtract(1, 'day').format('YYYY-MM-DD');
     onDateChange(prevDate);
   };
-  
+
   const handleNext = () => {
     const nextDate = currentDate.add(1, 'day').format('YYYY-MM-DD');
     onDateChange(nextDate);
   };
-  
+
   const handleToday = () => {
     onDateChange(todayStr);
   };
@@ -74,21 +74,19 @@ export function TimelineControls({
           <div className="flex rounded-lg border border-gray-200">
             <button
               onClick={() => onModeChange('daily')}
-              className={`px-4 py-2 text-sm rounded-l-lg ${
-                mode === 'daily'
+              className={`px-4 py-2 text-sm rounded-l-lg ${mode === 'daily'
                   ? 'bg-blue-100 text-blue-700'
                   : 'hover:bg-gray-50'
-              }`}
+                }`}
             >
               日次表示
             </button>
             <button
               onClick={() => onModeChange('weekly')}
-              className={`px-4 py-2 text-sm rounded-r-lg ${
-                mode === 'weekly'
+              className={`px-4 py-2 text-sm rounded-r-lg ${mode === 'weekly'
                   ? 'bg-blue-100 text-blue-700'
                   : 'hover:bg-gray-50'
-              }`}
+                }`}
             >
               週次表示
             </button>

@@ -75,11 +75,11 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
                   ))}
                 </div>
               </div>
-              
+
               {/* リフトごとのタイムライン */}
               <div className="space-y-4 w-full">
-                {Object.entries(liftLogs).map(([liftId, liftSegments]) => ( 
-                  <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full"> 
+                {Object.entries(liftLogs).map(([liftId, liftSegments]) => (
+                  <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full">
                     <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
                       <span className="truncate cursor-help"
                         onMouseEnter={(e) => showTooltip(e, lifts[Number(liftId)].name)}
@@ -88,7 +88,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
                         {lifts[Number(liftId)].name}
                       </span>
                     </div>
-                  
+
                     <div className="relative h-6 w-full">
                       <StatusBar liftSegments={liftSegments} />
                     </div>

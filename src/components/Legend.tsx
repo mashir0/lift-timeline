@@ -11,7 +11,7 @@ export function Legend({ mode }: LegendProps) {
       <p className="text-xs text-gray-500 mb-3">
         運行状況は10分ごとに自動更新されます
       </p>
-      
+
       {mode === 'daily' ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="flex items-center gap-2">
