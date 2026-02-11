@@ -11,6 +11,8 @@ import type { LiftSegmentsByLiftId } from '@/types';
 /** R2 に保存するキャッシュ値の型 */
 export type LiftTimelineCacheEntry = {
   calculatedAtSegment: string;
+  /** true: その日の19:00以降に計算した確定データ。false: 6〜19時の間に計算した不完全データ */
+  isComplete: boolean;
   result: {
     liftSegments: LiftSegmentsByLiftId;
     hours: number[];
@@ -73,14 +75,17 @@ export function serializeCacheEntry(entry: LiftTimelineCacheEntry): string {
  */
 export function deserializeCacheEntry(json: string): LiftTimelineCacheEntry | null {
   try {
-    const parsed = JSON.parse(json) as LiftTimelineCacheEntry;
+    const parsed = JSON.parse(json) as LiftTimelineCacheEntry & { isComplete?: boolean };
     if (
       typeof parsed.calculatedAtSegment === 'string' &&
       parsed.result &&
       typeof parsed.result.liftSegments === 'object' &&
       Array.isArray(parsed.result.hours)
     ) {
-      return parsed;
+      return {
+        ...parsed,
+        isComplete: parsed.isComplete === true,
+      };
     }
     return null;
   } catch {
@@ -110,9 +115,12 @@ export async function getCached(
   if (!obj) return null;
   const value = await obj.json();
   if (value && typeof value === 'object' && 'calculatedAtSegment' in value && 'result' in value) {
-    const parsed = value as LiftTimelineCacheEntry;
+    const parsed = value as LiftTimelineCacheEntry & { isComplete?: boolean };
     if (Array.isArray(parsed.result?.hours) && typeof parsed.result?.liftSegments === 'object') {
-      return parsed;
+      return {
+        ...parsed,
+        isComplete: parsed.isComplete === true,
+      };
     }
   }
   const jsonStr = typeof value === 'string' ? value : JSON.stringify(value);

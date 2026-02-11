@@ -8,9 +8,11 @@ import {
   setCached,
   getCurrentSegmentKey,
   isPastFinalHour,
+  isExpiredDateStr,
   type R2BucketLike,
   type LiftTimelineCacheEntry,
 } from '@/lib/liftTimelineCache';
+import { CACHE_RETENTION_DAYS } from '@/lib/constants';
 import dayjs from '@/util/dayjs';
 import type { LiftSegmentsByLiftId } from '@/types';
 
@@ -44,6 +46,9 @@ export async function fetchResortLiftLogs(
     if (!startDate.isValid()) {
       return { ok: false, reason: 'error', message: '日付が不正です' };
     }
+    if (isExpiredDateStr(dateStr, CACHE_RETENTION_DAYS)) {
+      return { ok: false, reason: 'no_data' };
+    }
 
     const nowJst = dayjs.tz(new Date(), 'Asia/Tokyo');
     let bucket: R2BucketLike | undefined;
@@ -58,12 +63,14 @@ export async function fetchResortLiftLogs(
     if (bucket) {
       const cached = await getCached(bucket, dateStr, resortId);
       if (cached) {
-        if (isPastFinalHour(dateStr, nowJst)) {
+        if (cached.isComplete) {
           return toResult(cached.result.liftSegments, cached.result.hours);
         }
-        const currentSegment = getCurrentSegmentKey(nowJst);
-        if (cached.calculatedAtSegment === currentSegment) {
-          return toResult(cached.result.liftSegments, cached.result.hours);
+        if (!isPastFinalHour(dateStr, nowJst)) {
+          const currentSegment = getCurrentSegmentKey(nowJst);
+          if (cached.calculatedAtSegment === currentSegment) {
+            return toResult(cached.result.liftSegments, cached.result.hours);
+          }
         }
       }
     }
@@ -82,6 +89,7 @@ export async function fetchResortLiftLogs(
     if (bucket) {
       const entry: LiftTimelineCacheEntry = {
         calculatedAtSegment: getCurrentSegmentKey(nowJst),
+        isComplete: isPastFinalHour(dateStr, nowJst),
         result: { liftSegments, hours },
       };
       await setCached(bucket, dateStr, resortId, entry);
