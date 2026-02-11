@@ -8,6 +8,7 @@ import { Legend } from '@/components/Legend';
 import { ResortCardFetcher } from '@/components/ResortCardFetcher';
 import dayjs from '@/util/dayjs';
 import type { ResortsDto, LiftsDto } from '@/types';
+import { LIFT_TIMELINE_REFERENCE_DATE } from '@/lib/constants';
 
 const DATE_STR_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -26,7 +27,7 @@ function isDateWithNoLiftData(
 }
 
 export default function Home() {
-  const today = dayjs.tz('2025-04-18', 'Asia/Tokyo').startOf('day');
+  const today = dayjs.tz(LIFT_TIMELINE_REFERENCE_DATE, 'Asia/Tokyo').startOf('day');
   const todayStr = today.format('YYYY-MM-DD');
 
   const [dateStr, setDateStr] = useState(todayStr);

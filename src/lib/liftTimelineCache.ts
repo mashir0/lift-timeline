@@ -3,6 +3,7 @@ import {
   LIFT_CACHE_KEY_PREFIX,
   CACHE_RETENTION_DAYS,
   LIFT_DAY_FINAL_HOUR_JST,
+  LIFT_TIMELINE_REFERENCE_DATE,
   ONE_SEGMENT_MINUTES,
   SEGMENTS_PER_HOUR,
 } from './constants';
@@ -95,10 +96,14 @@ export function deserializeCacheEntry(json: string): LiftTimelineCacheEntry | nu
 
 /**
  * 指定日数より前の dateStr かどうか。
+ * 基準日は LIFT_TIMELINE_REFERENCE_DATE が指定されていればその日付、なければ実時刻の今日。
  */
 export function isExpiredDateStr(dateStr: string, retentionDays: number): boolean {
   const cacheDate = dayjs.tz(dateStr, 'Asia/Tokyo').startOf('day');
-  const cutoff = dayjs.tz(new Date(), 'Asia/Tokyo').startOf('day').subtract(retentionDays, 'day');
+  const todayJst = LIFT_TIMELINE_REFERENCE_DATE
+    ? dayjs.tz(LIFT_TIMELINE_REFERENCE_DATE, 'Asia/Tokyo').startOf('day')
+    : dayjs.tz(new Date(), 'Asia/Tokyo').startOf('day');
+  const cutoff = todayJst.subtract(retentionDays, 'day');
   return cacheDate.isBefore(cutoff);
 }
 
