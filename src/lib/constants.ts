@@ -4,6 +4,12 @@ import { OperationStatus } from '@/types';
 export const SEGMENTS_PER_HOUR = 4; // 1時間の分割数 
 export const ONE_SEGMENT_MINUTES = 60 / SEGMENTS_PER_HOUR; // 1セグメントのONE_SET_MINUTES
 
+// R2 キャッシュ（プラン1）
+export const LIFT_CACHE_KEY_PREFIX = 'lift-timeline';
+export const CACHE_RETENTION_DAYS = 7;
+/** その日のリフトログが確定したとみなす JST の時（この時を過ぎたら再計算しない） */
+export const LIFT_DAY_FINAL_HOUR_JST = 19;
+
 // リゾートリスト
 export const defaultStatusJa: Record<OperationStatus, string> = {
   "OPERATING": "運転中",

@@ -1,9 +1,18 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { getSegmentsAndGroups } from '@/lib/getSegmentsAndGroups';
+import { fetchOneDayLiftLogs } from '@/lib/supabaseDto';
+import {
+  getCached,
+  setCached,
+  getCurrentSegmentKey,
+  isPastFinalHour,
+  type R2BucketLike,
+  type LiftTimelineCacheEntry,
+} from '@/lib/liftTimelineCache';
 import dayjs from '@/util/dayjs';
-import type { LiftSegmentsByLiftId, liftStatus, OperationStatus } from '@/types';
+import type { LiftSegmentsByLiftId } from '@/types';
 
 const DATE_STR_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -12,6 +21,17 @@ export type FetchResortLiftLogsResult =
   | { ok: false; reason: 'no_data' }
   | { ok: false; reason: 'error'; message: string };
 
+/**
+ * 計算結果を返却用の結果に変換する。
+ */
+function toResult(liftSegments: LiftSegmentsByLiftId, hours: number[]): FetchResortLiftLogsResult {
+  return { ok: true, liftSegments, hours };
+}
+
+/**
+ * 指定リゾート・日付のリフトログを取得し、タイムライン用のセグメント・時間を返す。
+ * R2 キャッシュありの場合はそれを返し、なければ fetchOneDayLiftLogs ＋ getSegmentsAndGroups で計算してキャッシュする。
+ */
 export async function fetchResortLiftLogs(
   resortId: number,
   dateStr: string
@@ -24,60 +44,50 @@ export async function fetchResortLiftLogs(
     if (!startDate.isValid()) {
       return { ok: false, reason: 'error', message: '日付が不正です' };
     }
-    const endDate = startDate.endOf('day');
 
-    const supabase = await createClient();
-
-    const { data: liftLogsData, error } = await supabase
-      .from('lift_status_view')
-      .select('*')
-      .eq('resort_id', resortId)
-      .gte('created_at', startDate.toISOString())
-      .lt('created_at', endDate.toISOString())
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching lift logs:', error);
-      return { ok: false, reason: 'error', message: 'データの取得に失敗しました' };
+    const nowJst = dayjs.tz(new Date(), 'Asia/Tokyo');
+    let bucket: R2BucketLike | undefined;
+    try {
+      const ctx = await getCloudflareContext({ async: true });
+      const env = ctx.env as { LIFT_TIMELINE_CACHE_R2_BUCKET?: R2BucketLike };
+      bucket = env.LIFT_TIMELINE_CACHE_R2_BUCKET;
+    } catch {
+      bucket = undefined;
     }
 
-    if (!liftLogsData || liftLogsData.length === 0) {
-      return { ok: false, reason: 'no_data' };
-    }
-
-    const groupedByLift: { [liftId: number]: liftStatus[] } = {};
-    const hoursSet = new Set<number>();
-
-    liftLogsData.forEach((log: { lift_id: number; created_at: string; status: string }) => {
-      const liftId = log.lift_id;
-      const createdAt = dayjs.tz(log.created_at, 'UTC').tz('Asia/Tokyo');
-      const hour = createdAt.hour();
-
-      hoursSet.add(hour);
-
-      if (!groupedByLift[liftId]) {
-        groupedByLift[liftId] = [];
+    if (bucket) {
+      const cached = await getCached(bucket, dateStr, resortId);
+      if (cached) {
+        if (isPastFinalHour(dateStr, nowJst)) {
+          return toResult(cached.result.liftSegments, cached.result.hours);
+        }
+        const currentSegment = getCurrentSegmentKey(nowJst);
+        if (cached.calculatedAtSegment === currentSegment) {
+          return toResult(cached.result.liftSegments, cached.result.hours);
+        }
       }
+    }
 
-      groupedByLift[liftId].push({
-        status: log.status as OperationStatus,
-        created_at: log.created_at,
-        round_created_at: log.created_at,
-      });
-    });
+    const { liftLogs, hours } = await fetchOneDayLiftLogs(resortId, dateStr);
 
-    const hours = Array.from(hoursSet).sort((a, b) => a - b);
-
-    if (Object.keys(groupedByLift).length === 0 || hours.length === 0) {
+    if (Object.keys(liftLogs).length === 0 || hours.length === 0) {
       return { ok: false, reason: 'no_data' };
     }
 
     const liftSegments: LiftSegmentsByLiftId = {};
-    for (const [liftId, liftLogs] of Object.entries(groupedByLift)) {
-      liftSegments[Number(liftId)] = getSegmentsAndGroups(liftLogs, hours);
+    for (const [liftId, logs] of Object.entries(liftLogs)) {
+      liftSegments[Number(liftId)] = getSegmentsAndGroups(logs, hours);
     }
 
-    return { ok: true, liftSegments, hours };
+    if (bucket) {
+      const entry: LiftTimelineCacheEntry = {
+        calculatedAtSegment: getCurrentSegmentKey(nowJst),
+        result: { liftSegments, hours },
+      };
+      await setCached(bucket, dateStr, resortId, entry);
+    }
+
+    return toResult(liftSegments, hours);
   } catch (err) {
     console.error('Error in fetchResortLiftLogs:', err);
     const message = err instanceof Error ? err.message : '予期せぬエラーが発生しました';

@@ -14,6 +14,10 @@ binding = "ASSETS"
 binding = "NEXT_INC_CACHE_R2_BUCKET"
 bucket_name = "next-inc-cache"
 
+[[r2_buckets]]
+binding = "LIFT_TIMELINE_CACHE_R2_BUCKET"
+bucket_name = "lift-timeline-cache"
+
 # Cron（JST 7:00–19:00 の間で 10 分ごと = UTC 22–10）
 [triggers]
 # 日本時間6:00-18:00（UTC 22:00-10:00）の間、10分ごとに実
