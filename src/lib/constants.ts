@@ -10,11 +10,11 @@ export const CACHE_RETENTION_DAYS = 7;
 /** その日のリフトログが確定したとみなす JST の時（この時を過ぎたら再計算しない） */
 export const LIFT_DAY_FINAL_HOUR_JST = 19;
 /**
- * 保持日数・no_data 判定の基準となる「今日」の日付（YYYY-MM-DD）。
- * 未設定なら実時刻の今日を使う。テストで過去のデータを使う場合は .dev.vars 等で指定（例: 2024-02-10）。
+ * 保持日数・no_data 判定および表示の基準となる「今日」の日付（YYYY-MM-DD）。
+ * 未設定なら実時刻の今日。テスト用は NEXT_PUBLIC_REFERENCE_DATE で指定（例: 2024-02-10）。
  */
-export const LIFT_TIMELINE_REFERENCE_DATE: string | undefined =
-  process.env.LIFT_TIMELINE_REFERENCE_DATE;
+export const REFERENCE_DATE: string | undefined =
+  process.env.NEXT_PUBLIC_REFERENCE_DATE;
 
 // リゾートリスト
 export const defaultStatusJa: Record<OperationStatus, string> = {
