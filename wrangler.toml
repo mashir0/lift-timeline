@@ -25,16 +25,24 @@ bucket_name = "lift-timeline-cache"
 crons = ["*/10 0-23 * * *"]
 
 # Cloudflare Workers用の設定
+# CRON 実行時に scheduled ハンドラーで env として渡される。キーをここに書かないとデプロイで消えることがある。
 [vars]
 ENVIRONMENT = "development"
+NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
+NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
+# 以下は機密のため値は空。ダッシュボードの「Encrypted variables」で実値を設定すること。
 
 [env.production.vars]
 TEST = "production"
 ENVIRONMENT = "production"
+NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
+NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
 
 [env.preview.vars]
 TEST = "preview"
-ENVIRONMENT = "production"
+ENVIRONMENT = "preview"
+NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
+NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
 
 [observability]
 enabled = false
