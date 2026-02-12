@@ -21,8 +21,8 @@ bucket_name = "lift-timeline-cache"
 # Cron（JST 7:00–19:00 の間で 10 分ごと = UTC 22–10）
 [triggers]
 # 日本時間6:00-18:00（UTC 22:00-10:00）の間、10分ごとに実
-crons = ["*/10 22-23,0-10 * * *"]
-# crons = [*/10 0-23 * * *"]
+# crons = ["*/10 22-23,0-10 * * *"]
+crons = ["*/10 0-23 * * *"]
 
 # Cloudflare Workers用の設定
 [vars]
