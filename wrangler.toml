@@ -4,6 +4,20 @@ main = "workers/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
+# Cron（JST 7:00–19:00 の間で 10 分ごと = UTC 22–10）
+# 日本時間6:00-18:00（UTC 22:00-10:00）の間、10分ごとに実
+[triggers]
+crons = ["*/10 22-23,0-10 * * *"]
+# crons = ["*/10 0-23 * * *"]
+
+# ================================================
+# 本番環境
+# ================================================
+# CRON 実行時に scheduled ハンドラーで env として渡される。キーをここに書かないとデプロイで消えることがある。
+[vars]
+ENVIRONMENT = "production"
+NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
+
 # アセット設定
 [assets]
 directory = ".open-next/assets"
@@ -18,32 +32,32 @@ bucket_name = "next-inc-cache"
 binding = "LIFT_TIMELINE_CACHE_R2_BUCKET"
 bucket_name = "lift-timeline-cache"
 
-# Cron（JST 7:00–19:00 の間で 10 分ごと = UTC 22–10）
-[triggers]
-# 日本時間6:00-18:00（UTC 22:00-10:00）の間、10分ごとに実
-crons = ["*/10 22-23,0-10 * * *"]
-# crons = ["*/10 0-23 * * *"]
 
-# Cloudflare Workers用の設定
-# CRON 実行時に scheduled ハンドラーで env として渡される。キーをここに書かないとデプロイで消えることがある。
-[vars]
-ENVIRONMENT = "development"
-NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
-NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
-# 以下は機密のため値は空。ダッシュボードの「Encrypted variables」で実値を設定すること。
-
-[env.production.vars]
-TEST = "production"
-ENVIRONMENT = "production"
-NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
-NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
-
+# ================================================
+# プレビュー環境
+# ================================================
 [env.preview.vars]
-TEST = "preview"
+NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
 ENVIRONMENT = "preview"
 NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
-NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
 
+# env.preview はトップレベルを継承しないため、アセットと R2 を明示
+[env.preview.assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[env.preview.r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "next-inc-cache"
+
+[[env.preview.r2_buckets]]
+binding = "LIFT_TIMELINE_CACHE_R2_BUCKET"
+bucket_name = "lift-timeline-cache"
+
+
+# ================================================
+# ロギング設定
+# ================================================
 [observability]
 enabled = false
 head_sampling_rate = 1
