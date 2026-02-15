@@ -2,7 +2,11 @@
 name = "lift-timeline"
 main = "workers/worker.ts"
 compatibility_date = "2024-12-01"
-compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+compatibility_flags = [
+  "nodejs_compat",
+  "nodejs_compat_populate_process_env",
+  "global_fetch_strictly_public",
+]
 
 # Cron（JST 7:00–19:00 の間で 10 分ごと = UTC 22–10）
 # 日本時間6:00-18:00（UTC 22:00-10:00）の間、10分ごとに実
@@ -16,7 +20,6 @@ crons = ["*/10 22-23,0-10 * * *"]
 # CRON 実行時に scheduled ハンドラーで env として渡される。キーをここに書かないとデプロイで消えることがある。
 [vars]
 ENVIRONMENT = "production"
-NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
 
 # アセット設定
 [assets]
@@ -37,9 +40,7 @@ bucket_name = "lift-timeline-cache"
 # プレビュー環境
 # ================================================
 [env.preview.vars]
-NEXT_PUBLIC_REFERENCE_DATE = "2025-04-18"
 ENVIRONMENT = "preview"
-NEXT_PUBLIC_YUKIYAMA_API = "https://web-api.yukiyama.biz/web-api/latest-facility/backward"
 
 # env.preview はトップレベルを継承しないため、アセットと R2 を明示
 [env.preview.assets]

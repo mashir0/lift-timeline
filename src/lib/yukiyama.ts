@@ -3,17 +3,16 @@ import { YukiyamaResponse } from "@/types";
 
 /**
  * 指定されたスキー場IDのリフト情報を取得する。
- * CRON では baseUrl を渡すこと（Worker では process.env が空のため）。
+ * baseUrl は呼び出し元で Worker env（YUKIYAMA_API）から渡すこと。環境変数はここでは読まない。
  */
 export const fetchYukiyamaApi = async (
   skiareaId: string,
-  baseUrl?: string
+  baseUrl: string
 ): Promise<YukiyamaResponse[]> => {
-  const yukiyamaApi = baseUrl ?? process.env.NEXT_PUBLIC_YUKIYAMA_API;
   const baseQuery = "?facilityType=lift&lang=jp";
 
   try {
-    const url = `${yukiyamaApi}${baseQuery}&skiareaId=${skiareaId}`;
+    const url = `${baseUrl}${baseQuery}&skiareaId=${skiareaId}`;
     const response = await fetch(url, { 
       cache: 'no-store',
       headers: {

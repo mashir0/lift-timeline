@@ -2,21 +2,22 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-/** CRON 用に Worker の env から渡される設定（オプション） */
+/** CRON 用に Worker の env から渡される設定（NEXT_PUBLIC_ 接頭辞は使わない） */
 export type SupabaseEnv = {
-  NEXT_PUBLIC_SUPABASE_URL?: string;
-  NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
-  NEXT_PUBLIC_YUKIYAMA_API?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
+  YUKIYAMA_API?: string;
+  REFERENCE_DATE?: string;
 };
 
 /**
  * リクエストスコープ外（CRON 等）で使う Cookie なしの Supabase クライアント。
  * updateAllLiftStatuses など CRON 専用パスから明示的に使用すること。
- * env が渡されればそれを優先し、なければ process.env にフォールバック（Next.js API Route 用）。
+ * Worker env（process.env）のみを参照する。
  */
-export function createServiceClient(env?: SupabaseEnv) {
-  const url = env?.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export function createServiceClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key) throw new Error('Supabase environment variables are missing');
   return createSupabaseClient(url, key, { auth: { persistSession: false } });
 }
@@ -32,8 +33,8 @@ export async function createClient() {
     const cookieStore = await cookies();
 
     return createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
