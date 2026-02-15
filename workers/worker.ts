@@ -4,11 +4,12 @@ import { updateAllLiftStatuses } from "../src/lib/scheduledTasks";
 import { deleteExpiredCacheKeys } from "../src/lib/liftTimelineCache";
 import type { R2BucketLike } from "../src/lib/liftTimelineCache";
 
-/** CRON 実行時に Supabase / Yukiyama API / R2 等を受け取るための型 */
+/** CRON 実行時に Worker env として渡される値（NEXT_PUBLIC_ 接頭辞は使わない） */
 interface CronEnv {
-  NEXT_PUBLIC_SUPABASE_URL?: string;
-  NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
-  NEXT_PUBLIC_YUKIYAMA_API?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
+  YUKIYAMA_API?: string;
+  REFERENCE_DATE?: string;
   LIFT_TIMELINE_CACHE_R2_BUCKET?: R2BucketLike;
 }
 
@@ -19,7 +20,7 @@ const worker = {
     env: CronEnv,
     ctx: { waitUntil: (p: Promise<unknown>) => void }
   ) {
-    ctx.waitUntil(updateAllLiftStatuses(env));
+    ctx.waitUntil(updateAllLiftStatuses());
     if (env.LIFT_TIMELINE_CACHE_R2_BUCKET) {
       ctx.waitUntil(
         deleteExpiredCacheKeys(env.LIFT_TIMELINE_CACHE_R2_BUCKET).then((deleted) => {

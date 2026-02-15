@@ -1,11 +1,11 @@
-import { createServiceClient, type SupabaseEnv } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { saveToLiftStatus } from './supabase';
 import { getAllResorts } from './supabaseDto';
 import { fetchYukiyamaApi } from './yukiyama';
 
 /**
  * すべてのスキー場のリフト情報を更新する
- * Cloudflare CRONから直接実行される
+ * Cloudflare CRONから直接実行される。必要な値は process.env（Worker env）から読む。
  */
 interface UpdateResponce {
   success: boolean; 
@@ -20,10 +20,10 @@ interface UpdateResponce {
 }
 
 
-export async function updateAllLiftStatuses(env?: SupabaseEnv): Promise<UpdateResponce> {
+export async function updateAllLiftStatuses(): Promise<UpdateResponce> {
   try {
     // CRON 専用: リクエストスコープがないため cookies() を使わないサービス用クライアントを使用
-    const supabase = createServiceClient(env);
+    const supabase = createServiceClient();
     const resorts = await getAllResorts(supabase);
     
     if (Object.keys(resorts).length === 0) {
@@ -41,8 +41,11 @@ export async function updateAllLiftStatuses(env?: SupabaseEnv): Promise<UpdateRe
     const results = [];
     const resortsEntries = Object.entries(resorts);
     
-    // Step 1: すべてのリゾートからAPIデータを取得する
-    const yukiyamaApiUrl = env?.NEXT_PUBLIC_YUKIYAMA_API;
+    // Step 1: すべてのリゾートからAPIデータを取得する（YUKIYAMA_API は Worker env で必須）
+    const yukiyamaApiUrl = process.env.YUKIYAMA_API;
+    if (!yukiyamaApiUrl) {
+      throw new Error('YUKIYAMA_API is not set in Worker env');
+    }
     for (const [id, resort] of resortsEntries) {
       try {
         console.log(`スキー場ID ${id} (${resort.name}) のリフト情報を取得中...`);
