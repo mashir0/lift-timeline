@@ -123,7 +123,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Header lastUpdated={new Date()} />
-      <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 overflow-x-hidden">
         <TimelineControls
           mode={mode}
           dateStr={dateStr}

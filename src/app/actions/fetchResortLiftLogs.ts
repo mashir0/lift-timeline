@@ -12,7 +12,7 @@ import {
   type R2BucketLike,
   type LiftTimelineCacheEntry,
 } from '@/lib/liftTimelineCache';
-import { CACHE_RETENTION_DAYS } from '@/lib/constants';
+import { CACHE_RETENTION_DAYS, getDisplayHours } from '@/lib/constants';
 import dayjs from '@/util/dayjs';
 import type { LiftSegmentsByLiftId } from '@/types';
 
@@ -33,10 +33,12 @@ function toResult(liftSegments: LiftSegmentsByLiftId, hours: number[]): FetchRes
 /**
  * 指定リゾート・日付のリフトログを取得し、タイムライン用のセグメント・時間を返す。
  * R2 キャッシュありの場合はそれを返し、なければ fetchOneDayLiftLogs ＋ getSegmentsAndGroups で計算してキャッシュする。
+ * liftIds を渡すと、ログが無いリフトも no-data セグメントで返す（固定時間枠で全リフト表示用）。
  */
 export async function fetchResortLiftLogs(
   resortId: number,
-  dateStr: string
+  dateStr: string,
+  liftIds?: number[]
 ): Promise<FetchResortLiftLogsResult> {
   try {
     if (!DATE_STR_REGEX.test(dateStr)) {
@@ -75,27 +77,31 @@ export async function fetchResortLiftLogs(
       }
     }
 
-    const { liftLogs, hours } = await fetchOneDayLiftLogs(resortId, dateStr);
+    const { liftLogs } = await fetchOneDayLiftLogs(resortId, dateStr);
+    const displayHours = getDisplayHours();
 
-    if (Object.keys(liftLogs).length === 0 || hours.length === 0) {
+    if (Object.keys(liftLogs).length === 0) {
       return { ok: false, reason: 'no_data' };
     }
 
     const liftSegments: LiftSegmentsByLiftId = {};
-    for (const [liftId, logs] of Object.entries(liftLogs)) {
-      liftSegments[Number(liftId)] = getSegmentsAndGroups(logs, hours);
+    const idsToProcess =
+      liftIds && liftIds.length > 0 ? liftIds : Object.keys(liftLogs).map(Number);
+    for (const liftId of idsToProcess) {
+      const logs = liftLogs[liftId] ?? [];
+      liftSegments[liftId] = getSegmentsAndGroups(logs, displayHours, dateStr);
     }
 
     if (bucket) {
       const entry: LiftTimelineCacheEntry = {
         calculatedAtSegment: getCurrentSegmentKey(nowJst),
         isComplete: isPastFinalHour(dateStr, nowJst),
-        result: { liftSegments, hours },
+        result: { liftSegments, hours: displayHours },
       };
       await setCached(bucket, dateStr, resortId, entry);
     }
 
-    return toResult(liftSegments, hours);
+    return toResult(liftSegments, displayHours);
   } catch (err) {
     console.error('Error in fetchResortLiftLogs:', err);
     const message = err instanceof Error ? err.message : '予期せぬエラーが発生しました';

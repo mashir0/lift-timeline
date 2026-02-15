@@ -28,24 +28,38 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         const timeRange = `${startTime}〜${endTime}`;
         const tooltipText = `${segment.status} (${timeRange})`;
 
+        const isNoData = segment.status === 'no-data';
+        // 幅が狭い場合は「no data」は表示せず点線のみ（count が十分なときだけテキスト表示）
+        const shouldShowNoDataText = isNoData && segment.count >= 5;
+
         return (
-          // セグメント 
+          // セグメント
           <div
             key={groupIndex}
-            className={`${getStatusColor(segment.status)} flex-1 flex items-center justify-center cursor-pointer relative group`}
+            className={`${isNoData ? 'bg-transparent' : getStatusColor(segment.status)} flex-1 flex items-center justify-center cursor-pointer relative group`}
             style={{ borderRadius, flex: segment.count }}
           >
-            {/* テキスト表示 */}
-            {shouldShowText && (
-              <span className="text-center text-xs text-gray-600 truncate px-1">
-                {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
-              </span>
+            {isNoData ? (
+              <>
+                <div className="absolute top-1/2 left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed border-gray-400" />
+                {shouldShowNoDataText && (
+                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-500 whitespace-nowrap z-[1] bg-white px-1">
+                    no data
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                {shouldShowText && (
+                  <span className="text-center text-xs text-gray-600 truncate px-1">
+                    {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
+                  </span>
+                )}
+                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800/80 text-white text-xs rounded whitespace-nowrap z-50 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
+                  {tooltipText}
+                </div>
+              </>
             )}
-
-            {/* Tailwind CSSのみを使用したツールチップ */}
-            <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800/80 text-white text-xs rounded whitespace-nowrap z-50 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
-              {tooltipText}
-            </div>
           </div>
         );
       })}

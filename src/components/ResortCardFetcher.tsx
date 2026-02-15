@@ -34,7 +34,8 @@ export function ResortCardFetcher({
 
     const loadData = async () => {
       try {
-        const res = await fetchResortLiftLogs(Number(resortId), dateStr);
+        const liftIds = Object.keys(lifts).map(Number);
+        const res = await fetchResortLiftLogs(Number(resortId), dateStr, liftIds);
         if (cancelled) return;
         setResult(res);
       } catch (err) {
