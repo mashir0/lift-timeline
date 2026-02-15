@@ -40,7 +40,7 @@ export const defaultStatusJa: Record<OperationStatus, string> = {
   "outside-hours": "時間外",
   "no-data": "no data"
 };
-const openColorPrimary = 'bg-blue-300 hover:bg-blue-500';
+const openColorPrimary = 'bg-blue-200 hover:bg-blue-500';
 const openColorSecondary = 'bg-blue-100 hover:bg-blue-300';
 
 const stopColorPrimary = 'bg-gray-400 hover:bg-gray-500 text-white';

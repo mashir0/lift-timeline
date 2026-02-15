@@ -2,43 +2,55 @@
   "version": "0.2.0",
   "configurations": [
     {
-      // client side debug
-      "name": "Next.js Client",
+      "name": "Next.js: debug server-side",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect"],
+      "program": "${workspaceFolder}/node_modules/next/dist/bin/next",
+      "args": ["dev", "--turbopack"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.dev.vars",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"]
+    },
+    {
+      "name": "Next.js: debug client-side (Chrome)",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}",
-      "runtimeArgs": [
-        "--remote-debugging-port=9222"
-      ],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/*": "${webRoot}/*"
+        "webpack://_N_E/*": "${webRoot}/*",
+        "webpack://*": "${webRoot}/*"
       }
     },
     {
-      // server side debug
-      "name": "Next.js Server",
+      "name": "Next.js: Full Stack (サーバー＋クライアント同時)",
       "type": "node",
       "request": "launch",
-      "skipFiles": ["<node_internals>/**"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect"],
       "program": "${workspaceFolder}/node_modules/next/dist/bin/next",
-      "args": ["dev"],
+      "args": ["dev", "--turbopack"],
       "cwd": "${workspaceFolder}",
-      "env": {
-        "NODE_OPTIONS": "--inspect"
-      },
+      "envFile": "${workspaceFolder}/.dev.vars",
       "console": "integratedTerminal",
-      // "port": 9229,
-      "resolveSourceMapLocations": [
-        "${workspaceFolder}/**",
-        "!**/node_modules/**"
-      ]
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"],
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "pattern": "- Local:.+(https?://[^\\s]+)",
+        "uriFormat": "%s",
+        "webRoot": "${workspaceFolder}"
+      }
     }
   ],
   "compounds": [
     {
-      "name": "Next.js Full Stack",
-      "configurations": ["Next.js Server", "Next.js Client"],
+      "name": "Next.js: Full Stack (並列起動)",
+      "configurations": ["Next.js: debug server-side", "Next.js: debug client-side (Chrome)"],
       "stopAll": true
     }
   ]
