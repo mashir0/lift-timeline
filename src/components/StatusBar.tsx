@@ -27,8 +27,7 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         const endTime = nextSegment
           ? dayjs.tz(nextSegment.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm')
           : `${String(LIFT_DAY_FINAL_HOUR_JST).padStart(2, '0')}:00`;
-        const timeRange = `${startTime}〜${endTime}`;
-        const tooltipText = `${segment.status} (${timeRange})`;
+        const tooltipText = `${startTime}〜${endTime}`;
 
         const isNoData = segment.status === 'no-data';
         // 幅が狭い場合は「no data」は表示せず点線のみ（count が十分なときだけテキスト表示）
