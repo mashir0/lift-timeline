@@ -20,6 +20,8 @@ crons = ["*/10 22-23,0-10 * * *"]
 # CRON 実行時に scheduled ハンドラーで env として渡される。キーをここに書かないとデプロイで消えることがある。
 [vars]
 ENVIRONMENT = "production"
+# 1 にすると R2 キャッシュを読まない・書かない（getSegmentsAndGroups を毎回実行）。本番は 0 のまま推奨。
+LIFT_TIMELINE_CACHE_DISABLED = "0"
 
 # アセット設定
 [assets]
@@ -41,6 +43,8 @@ bucket_name = "lift-timeline-cache"
 # ================================================
 [env.preview.vars]
 ENVIRONMENT = "preview"
+# プレビューでキャッシュを無効にしたいときは 1 に変更
+LIFT_TIMELINE_CACHE_DISABLED = "0"
 
 # env.preview はトップレベルを継承しないため、アセットと R2 を明示
 [env.preview.assets]
