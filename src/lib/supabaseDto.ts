@@ -203,9 +203,8 @@ export async function fetchOneDayLiftLogs(
         lastStatus = processedLogs.at(-1);
       }
 
-      // 連続する同じステータスは無視（最後のログは必ず追加）
-      const isLastLogForThisLift = i === liftLogs.length - 1;
-      if (!lastStatus || lastStatus.status !== log.status || isLastLogForThisLift) {
+      // 連続する同じステータスは1つにまとめる（直前と同じなら追加しない）
+      if (!lastStatus || lastStatus.status !== log.status) {
         const newStatus = {
           status: log.status,
           created_at: log.created_at,

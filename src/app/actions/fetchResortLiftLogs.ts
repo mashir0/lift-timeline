@@ -53,13 +53,18 @@ export async function fetchResortLiftLogs(
     }
 
     const nowJst = dayjs.tz(new Date(), 'Asia/Tokyo');
+    const cacheDisabled =
+      process.env.LIFT_TIMELINE_CACHE_DISABLED === '1' ||
+      process.env.LIFT_TIMELINE_CACHE_DISABLED === 'true';
     let bucket: R2BucketLike | undefined;
-    try {
-      const ctx = await getCloudflareContext({ async: true });
-      const env = ctx.env as { LIFT_TIMELINE_CACHE_R2_BUCKET?: R2BucketLike };
-      bucket = env.LIFT_TIMELINE_CACHE_R2_BUCKET;
-    } catch {
-      bucket = undefined;
+    if (!cacheDisabled) {
+      try {
+        const ctx = await getCloudflareContext({ async: true });
+        const env = ctx.env as { LIFT_TIMELINE_CACHE_R2_BUCKET?: R2BucketLike };
+        bucket = env.LIFT_TIMELINE_CACHE_R2_BUCKET;
+      } catch {
+        bucket = undefined;
+      }
     }
 
     if (bucket) {

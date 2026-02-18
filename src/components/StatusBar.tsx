@@ -1,5 +1,5 @@
 'use client';
-import { defaultStatusJa, getStatusColor } from '@/lib/constants';
+import { defaultStatusJa, getStatusColor, LIFT_DAY_FINAL_HOUR_JST } from '@/lib/constants';
 import dayjs from '@/util/dayjs';
 import type { LiftSegment } from '@/types';
 
@@ -22,9 +22,11 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         // 幅に応じてテキスト表示を判断（レスポンシブ対応）
         const shouldShowText = segment.count >= 3;
 
-        // ツールチップ用のテキスト作成
+        // ツールチップ用のテキスト作成（最後のセグメントはグラフ終端20:00まで表示）
         const startTime = dayjs.tz(segment.created_at, 'UTC').tz('Asia/Tokyo').format('HH:mm');
-        const endTime = dayjs.tz(nextSegment?.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm');
+        const endTime = nextSegment
+          ? dayjs.tz(nextSegment.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm')
+          : `${String(LIFT_DAY_FINAL_HOUR_JST).padStart(2, '0')}:00`;
         const timeRange = `${startTime}〜${endTime}`;
         const tooltipText = `${segment.status} (${timeRange})`;
 

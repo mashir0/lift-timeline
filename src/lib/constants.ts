@@ -14,10 +14,10 @@ export const LIFT_DAY_FINAL_HOUR_JST = 20;
 /** タイムラインに表示する時間帯の開始時（JST） */
 export const DISPLAY_HOUR_START_JST = 6;
 
-/** タイムライン表示用の時間の配列（例: [6,7,...,19]） */
+/** タイムライン表示用の時間の配列（6〜19時 → グラフ終端は20:00） */
 export function getDisplayHours(): number[] {
   const hours: number[] = [];
-  for (let h = DISPLAY_HOUR_START_JST; h <= LIFT_DAY_FINAL_HOUR_JST; h++) {
+  for (let h = DISPLAY_HOUR_START_JST; h < LIFT_DAY_FINAL_HOUR_JST; h++) {
     hours.push(h);
   }
   return hours;

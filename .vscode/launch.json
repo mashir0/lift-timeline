@@ -36,12 +36,12 @@
       "args": ["dev", "--turbopack"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.dev.vars",
-      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"],
       "serverReadyAction": {
         "action": "debugWithChrome",
-        "pattern": "- Local:.+(https?://[^\\s]+)",
+        "killOnServerStop": true,
+        "pattern": "- Local:.+(https?://.+)",
         "uriFormat": "%s",
         "webRoot": "${workspaceFolder}"
       }
