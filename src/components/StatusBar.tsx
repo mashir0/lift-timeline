@@ -1,5 +1,5 @@
 'use client';
-import { defaultStatusJa, getStatusColor } from '@/lib/constants';
+import { defaultStatusJa, getStatusColor, LIFT_DAY_FINAL_HOUR_JST } from '@/lib/constants';
 import dayjs from '@/util/dayjs';
 import type { LiftSegment } from '@/types';
 
@@ -22,30 +22,46 @@ export function StatusBar({ liftSegments }: StatusBarProps) {
         // 幅に応じてテキスト表示を判断（レスポンシブ対応）
         const shouldShowText = segment.count >= 3;
 
-        // ツールチップ用のテキスト作成
+        // ツールチップ用のテキスト作成（最後のセグメントはグラフ終端20:00まで表示）
         const startTime = dayjs.tz(segment.created_at, 'UTC').tz('Asia/Tokyo').format('HH:mm');
-        const endTime = dayjs.tz(nextSegment?.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm');
+        const endTime = nextSegment
+          ? dayjs.tz(nextSegment.created_at, 'UTC').tz('Asia/Tokyo').subtract(1, 'minute').format('HH:mm')
+          : `${String(LIFT_DAY_FINAL_HOUR_JST).padStart(2, '0')}:00`;
         const timeRange = `${startTime}〜${endTime}`;
         const tooltipText = `${segment.status} (${timeRange})`;
 
+        const isNoData = segment.status === 'no-data';
+        // 幅が狭い場合は「no data」は表示せず点線のみ（count が十分なときだけテキスト表示）
+        const shouldShowNoDataText = isNoData && segment.count >= 5;
+
         return (
-          // セグメント 
+          // セグメント
           <div
             key={groupIndex}
-            className={`${getStatusColor(segment.status)} flex-1 flex items-center justify-center cursor-pointer relative group`}
+            className={`${isNoData ? 'bg-transparent' : getStatusColor(segment.status)} flex-1 flex items-center justify-center cursor-pointer relative group`}
             style={{ borderRadius, flex: segment.count }}
           >
-            {/* テキスト表示 */}
-            {shouldShowText && (
-              <span className="text-center text-xs text-gray-600 truncate px-1">
-                {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
-              </span>
+            {isNoData ? (
+              <>
+                <div className="absolute top-1/2 left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed border-gray-400" />
+                {shouldShowNoDataText && (
+                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-500 whitespace-nowrap z-[1] bg-white px-1">
+                    no data
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                {shouldShowText && (
+                  <span className="text-center text-xs text-gray-600 truncate px-1">
+                    {defaultStatusJa[segment.status as keyof typeof defaultStatusJa]}
+                  </span>
+                )}
+                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800/80 text-white text-xs rounded whitespace-nowrap z-50 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
+                  {tooltipText}
+                </div>
+              </>
             )}
-
-            {/* Tailwind CSSのみを使用したツールチップ */}
-            <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800/80 text-white text-xs rounded whitespace-nowrap z-50 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
-              {tooltipText}
-            </div>
           </div>
         );
       })}

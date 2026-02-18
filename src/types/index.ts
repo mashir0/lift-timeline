@@ -5,7 +5,8 @@ export type OperationStatus =
   "SUSPENDED" |
   "OPERATION_TEMPORARILY_SUSPENDED" |
   "TODAY_CLOSED" |
-  "outside-hours";
+  "outside-hours" |
+  "no-data";
 
 /***
  * Yukiyama API関連の型定義
@@ -43,7 +44,7 @@ export type DBQuery = {
   //   to: string | number;
   // };
   // [key: string]: any;
-} 
+}
 
 // DBのSki Resortの型(ski_resorts)
 export type DBResort = {
@@ -88,19 +89,19 @@ export type DBLiftStatusView = DBLiftStatus & {
  ***/
 // Resorts一覧　id: {name, map_url}
 export type ResortsDto = {
-  [id: number]: { 
-    name: string; 
-    map_url: string; 
+  [id: number]: {
+    name: string;
+    map_url: string;
   };
 }
 
 // Lifts一覧　id: {name, start_time, end_time}
 export type LiftsDto = {
-  [resort_id: number]: { 
-    [lift_id: number]: { 
-      name: string; 
-      start_time: string; 
-      end_time: string; 
+  [resort_id: number]: {
+    [lift_id: number]: {
+      name: string;
+      start_time: string;
+      end_time: string;
     };
   };
 }

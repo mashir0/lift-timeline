@@ -6,9 +6,22 @@ export const ONE_SEGMENT_MINUTES = 60 / SEGMENTS_PER_HOUR; // 1セグメント�
 
 // R2 キャッシュ（プラン1）
 export const LIFT_CACHE_KEY_PREFIX = 'lift-timeline';
+/** キャッシュキーに含めるバージョン（データ構造変更時に上げて無効化） */
+export const CACHE_KEY_VERSION = 'v1';
 export const CACHE_RETENTION_DAYS = 7;
 /** その日のリフトログが確定したとみなす JST の時（この時を過ぎたら再計算しない） */
-export const LIFT_DAY_FINAL_HOUR_JST = 19;
+export const LIFT_DAY_FINAL_HOUR_JST = 20;
+/** タイムラインに表示する時間帯の開始時（JST） */
+export const DISPLAY_HOUR_START_JST = 6;
+
+/** タイムライン表示用の時間の配列（6〜19時 → グラフ終端は20:00） */
+export function getDisplayHours(): number[] {
+  const hours: number[] = [];
+  for (let h = DISPLAY_HOUR_START_JST; h < LIFT_DAY_FINAL_HOUR_JST; h++) {
+    hours.push(h);
+  }
+  return hours;
+}
 /**
  * 保持日数・no_data 判定および表示の基準となる「今日」の日付（YYYY-MM-DD）。
  * 未設定なら実時刻の今日。テスト用は NEXT_PUBLIC_REFERENCE_DATE で指定（例: 2024-02-10）。
@@ -18,19 +31,20 @@ export const REFERENCE_DATE: string | undefined =
 
 // リゾートリスト
 export const defaultStatusJa: Record<OperationStatus, string> = {
-  "OPERATING": "運転中",
-  "OPERATION_SLOWED": "低速運転",
+  "OPERATING": "運行中",
+  "OPERATION_SLOWED": "低速運行",
   "STANDBY": "待機中",
   "SUSPENDED": "運休",
-  "OPERATION_TEMPORARILY_SUSPENDED": "運休中",
-  "TODAY_CLOSED": "本日運休",
-  "outside-hours": "時間外"
+  "OPERATION_TEMPORARILY_SUSPENDED": "一時停止",
+  "TODAY_CLOSED": "営業時間外",
+  "outside-hours": "時間外",
+  "no-data": "no data"
 };
-const openColorPrimary = 'bg-green-200 hover:bg-green-300';
-const openColorSecondary = 'bg-blue-200 hover:bg-blue-300';
+const openColorPrimary = 'bg-blue-200 hover:bg-blue-500';
+const openColorSecondary = 'bg-blue-100 hover:bg-blue-300';
 
 const stopColorPrimary = 'bg-gray-400 hover:bg-gray-500 text-white';
-const stopColorSecondary = 'bg-gray-100 hover:bg-gray-500';
+const stopColorSecondary = 'bg-gray-200 hover:bg-gray-500';
 
 export const getStatusColor = (status: string) => {
   switch (status) {

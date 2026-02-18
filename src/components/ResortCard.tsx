@@ -34,7 +34,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
   }
 
   const availableHours = hours ?? [];
-  const hasAnyData = availableHours.length > 0 && liftLogs && Object.keys(liftLogs).length > 0;
+  const hasAnyData = availableHours.length > 0;
   const liftEntries = Object.entries(lifts).sort(([a], [b]) => Number(a) - Number(b));
 
   return (
@@ -59,23 +59,28 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
           </div>
         </div>
 
-        <div className="w-full" ref={timelineRef}>
+        <div className="w-full min-w-0 overflow-x-hidden" ref={timelineRef}>
           {mode === 'daily' ? (
-            <div className="w-full">
+            <div className="w-full min-w-0">
               {hasAnyData && (
                 <>
                   {/* レスポンシブな時間軸ヘッダー */}
-                  <div className="flex flex-col md:grid md:grid-cols-[120px_1fr] mb-2 overflow-visible">
+                  <div className="flex flex-col md:grid md:grid-cols-[120px_1fr] mb-2 overflow-visible min-w-0">
                     <div className="text-xs text-gray-400 hidden md:block">リフト名</div>
-                    <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${availableHours.length}, 1fr)` }}>
-                      {availableHours.map((hour) => (
-                        <div key={hour} className="text-sm text-gray-500 text-left">
-                          <span className="hidden md:inline">{hour}:00</span>
-                          <span className="md:hidden">
-                            {availableHours.length <= 6 || hour % 2 === 1 ? `${hour}:00` : ''}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="grid w-full min-w-0" style={{ gridTemplateColumns: `repeat(${availableHours.length}, 1fr)` }}>
+                      {availableHours.map((hour) => {
+                        const isLastHour = hour === availableHours[availableHours.length - 1];
+                        const showOnMobile =
+                          availableHours.length <= 6 || hour % 2 === 1 || isLastHour;
+                        return (
+                          <div key={hour} className="text-sm text-gray-500 text-left">
+                            <span className="hidden md:inline">{hour}:00</span>
+                            <span className="md:hidden">
+                              {showOnMobile ? `${hour}:00` : ''}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </>
@@ -87,7 +92,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
                   const segments = liftLogs?.[Number(liftId)];
                   const hasData = segments && segments.length > 0;
                   return (
-                    <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full">
+                    <div key={liftId} className="flex flex-col md:grid md:grid-cols-[120px_1fr] w-full min-w-0">
                       <div className="text-sm text-gray-600 truncate mb-0 flex md:items-center items-end">
                         <span
                           className="truncate cursor-help"
@@ -99,7 +104,7 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
                       </div>
 
                       {hasData ? (
-                        <div className="relative h-6 w-full">
+                        <div className="relative h-6 w-full min-w-0">
                           <StatusBar liftSegments={segments} />
                         </div>
                       ) : (

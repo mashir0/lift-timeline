@@ -1,6 +1,7 @@
 import dayjs from '@/util/dayjs';
 import {
   LIFT_CACHE_KEY_PREFIX,
+  CACHE_KEY_VERSION,
   CACHE_RETENTION_DAYS,
   LIFT_DAY_FINAL_HOUR_JST,
   ONE_SEGMENT_MINUTES,
@@ -36,10 +37,10 @@ export type R2BucketLike = {
 
 /**
  * キャッシュキーを生成する。
- * 形式: lift-timeline/{dateStr}/{resortId}.json
+ * 形式: lift-timeline/{version}/{dateStr}/{resortId}.json
  */
 export function getCacheKey(dateStr: string, resortId: number): string {
-  return `${LIFT_CACHE_KEY_PREFIX}/${dateStr}/${resortId}.json`;
+  return `${LIFT_CACHE_KEY_PREFIX}/${CACHE_KEY_VERSION}/${dateStr}/${resortId}.json`;
 }
 
 /**
