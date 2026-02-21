@@ -53,6 +53,8 @@ export const getSegmentsAndGroups = (
   }
 
   const now = dayjs.tz(new Date(), 'UTC');
+  const nowInRange = !now.isBefore(startTime) && now.isBefore(endTime);
+
   const result: LiftSegment[] = [];
 
   const sortedLogs = [...liftLogs]
@@ -79,8 +81,11 @@ export const getSegmentsAndGroups = (
       break;
     }
 
+    // 設定時間内（リアルタイム）のときはセグメントを現在時刻で打ち切り、20時まで埋めない
+    const segmentEnd =
+      nowInRange && now.isBefore(nextTime) ? now : nextTime;
     const durationMinutes = Math.min(
-      nextTime.diff(currentTime, 'minute'),
+      segmentEnd.diff(currentTime, 'minute'),
       endTime.diff(currentTime, 'minute')
     );
     const segmentCount = Math.max(

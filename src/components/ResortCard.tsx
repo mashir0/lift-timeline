@@ -1,21 +1,48 @@
 'use client';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { MapIcon } from '@heroicons/react/24/outline';
+import dayjs from '@/util/dayjs';
 import type { ResortsDto, LiftsDto, LiftSegmentsByLiftId } from '@/types';
 import { StatusBar } from './StatusBar';
-// import dayjs from '@/util/dayjs';
+import { DISPLAY_HOUR_START_JST, LIFT_DAY_FINAL_HOUR_JST, SEGMENTS_PER_HOUR } from '@/lib/constants';
 
 type ResortCardProps = {
   mode: 'daily' | 'weekly';
+  dateStr: string;
   resort: ResortsDto[number];
   lifts: LiftsDto[number];
   liftLogs: LiftSegmentsByLiftId;
   hours: number[];
 };
 
-export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardProps) {
+export function ResortCard({ mode, dateStr, resort, lifts, liftLogs, hours }: ResortCardProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  const totalSegments = (LIFT_DAY_FINAL_HOUR_JST - DISPLAY_HOUR_START_JST) * SEGMENTS_PER_HOUR;
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (mode !== 'daily' || !dateStr) return;
+    const todayStr = dayjs.tz(new Date(), 'Asia/Tokyo').format('YYYY-MM-DD');
+    if (dateStr !== todayStr) return;
+    const id = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [mode, dateStr]);
+
+  const nowPositionPercent = useMemo(() => {
+    if (mode !== 'daily' || !dateStr || hours.length === 0) return null;
+    const todayStr = dayjs.tz(new Date(nowTick), 'Asia/Tokyo').format('YYYY-MM-DD');
+    if (dateStr !== todayStr) return null;
+    const nowJst = dayjs.tz(new Date(nowTick), 'Asia/Tokyo');
+    const hour = nowJst.hour();
+    const minute = nowJst.minute();
+    if (hour < DISPLAY_HOUR_START_JST) return 0;
+    if (hour >= LIFT_DAY_FINAL_HOUR_JST) return 100;
+    const segmentIndex =
+      (hour - DISPLAY_HOUR_START_JST) * SEGMENTS_PER_HOUR +
+      Math.floor(minute / (60 / SEGMENTS_PER_HOUR));
+    return Math.min(100, (segmentIndex / totalSegments) * 100);
+  }, [mode, dateStr, hours.length, totalSegments, nowTick]);
   const showTooltip = useCallback((e: React.MouseEvent<HTMLSpanElement>, text: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({
@@ -106,6 +133,13 @@ export function ResortCard({ mode, resort, lifts, liftLogs, hours }: ResortCardP
                       {hasData ? (
                         <div className="relative h-6 w-full min-w-0">
                           <StatusBar liftSegments={segments} />
+                          {nowPositionPercent != null && (
+                            <div
+                              className="absolute inset-y-0 w-0.5 bg-red-500 pointer-events-none z-10"
+                              style={{ left: `${nowPositionPercent}%` }}
+                              aria-hidden
+                            />
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center h-6 w-full text-sm text-gray-500">

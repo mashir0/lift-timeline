@@ -81,6 +81,7 @@ export function ResortCardFetcher({
   return (
     <ResortCard
       mode={mode}
+      dateStr={dateStr}
       resort={resort}
       lifts={lifts}
       liftLogs={result.liftSegments}

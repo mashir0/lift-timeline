@@ -6,15 +6,15 @@ export const ONE_SEGMENT_MINUTES = 60 / SEGMENTS_PER_HOUR; // 1セグメント�
 
 // R2 キャッシュ（プラン1）
 export const LIFT_CACHE_KEY_PREFIX = 'lift-timeline';
-/** キャッシュキーに含めるバージョン（データ構造変更時に上げて無効化） */
-export const CACHE_KEY_VERSION = 'v1';
+/** キャッシュキーに含めるバージョン（表示範囲・データ構造変更時に上げて無効化） */
+export const CACHE_KEY_VERSION = 'v2';
 export const CACHE_RETENTION_DAYS = 7;
 /** その日のリフトログが確定したとみなす JST の時（この時を過ぎたら再計算しない） */
 export const LIFT_DAY_FINAL_HOUR_JST = 20;
 /** タイムラインに表示する時間帯の開始時（JST） */
-export const DISPLAY_HOUR_START_JST = 6;
+export const DISPLAY_HOUR_START_JST = 7;
 
-/** タイムライン表示用の時間の配列（6〜19時 → グラフ終端は20:00） */
+/** タイムライン表示用の時間の配列（DISPLAY_HOUR_START_JST〜19時 → グラフ終端は20:00） */
 export function getDisplayHours(): number[] {
   const hours: number[] = [];
   for (let h = DISPLAY_HOUR_START_JST; h < LIFT_DAY_FINAL_HOUR_JST; h++) {
