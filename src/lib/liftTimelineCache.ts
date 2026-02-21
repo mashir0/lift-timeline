@@ -159,13 +159,15 @@ export async function deleteExpiredCacheKeys(
   const prefix = `${LIFT_CACHE_KEY_PREFIX}/`;
   const keysToDelete: string[] = [];
   let cursor: string | undefined;
+  const dateStrRegex = /^\d{4}-\d{2}-\d{2}$/;
   do {
     const listResult = await bucket.list({ prefix, limit: 1000, cursor });
     for (const obj of listResult.objects) {
       const key = obj.key;
+      // キー形式: lift-timeline/v1/YYYY-MM-DD/resortId.json または (旧) lift-timeline/YYYY-MM-DD/resortId.json
       const parts = key.slice(prefix.length).split('/');
-      const dateStr = parts[0];
-      if (dateStr && isExpiredDateStr(dateStr, retentionDays)) {
+      const dateStr = parts.length >= 3 ? parts[1] : parts[0];
+      if (dateStr && dateStrRegex.test(dateStr) && isExpiredDateStr(dateStr, retentionDays)) {
         keysToDelete.push(key);
       }
     }
